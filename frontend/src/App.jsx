@@ -23,6 +23,7 @@ const AppShell = () => {
   const location = useLocation();
   const [departamentos, setDepartamentos] = useState([]);
   const [usuarioEmail, setUsuarioEmail] = useState(localStorage.getItem('treinamentos_email') || '');
+  const [userToken, setUserTokenState] = useState(localStorage.getItem('user_token') || '');
   const [progresso, setProgresso] = useState({});
   const [treinamentoStatus, setTreinamentoStatus] = useState({});
   const [carregando, setCarregando] = useState(true);
@@ -44,8 +45,14 @@ const AppShell = () => {
       }
     };
 
-    carregarCatalogo();
-  }, []);
+    if (userToken) {
+      carregarCatalogo();
+    } else {
+      setDepartamentos([]);
+      setErroCatalogo('');
+      setCarregando(false);
+    }
+  }, [userToken]);
 
   useEffect(() => {
     const carregarProgresso = async () => {
@@ -83,6 +90,7 @@ const AppShell = () => {
         return false;
       }
       setUserToken(data.access);
+      setUserTokenState(data.access);
       setUsuarioEmail(email);
       localStorage.setItem('treinamentos_email', email);
       try {
@@ -185,6 +193,7 @@ const AppShell = () => {
     clearUserToken();
     localStorage.removeItem('treinamentos_email');
     setUsuarioEmail('');
+    setUserTokenState('');
   };
 
   const bloqueiaTreinamentos = !localStorage.getItem('user_token') && location.pathname === '/';

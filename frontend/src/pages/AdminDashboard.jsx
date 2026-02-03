@@ -14,6 +14,21 @@ import {
   updateTreinamento,
 } from '../services/api.js';
 
+const normalizeDateToInput = (value) => {
+  if (!value) return '';
+  const str = value.toString();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  if (/^\d{2}-\d{2}-\d{4}$/.test(str)) {
+    const [day, month, year] = str.split('-');
+    return `${year}-${month}-${day}`;
+  }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
+    const [day, month, year] = str.split('/');
+    return `${year}-${month}-${day}`;
+  }
+  return str;
+};
+
 const AdminDashboard = () => {
   const [departamentos, setDepartamentos] = useState([]);
   const [treinamentos, setTreinamentos] = useState([]);
@@ -148,7 +163,7 @@ const AdminDashboard = () => {
       codigo: treinamento.codigo || '',
       nome: treinamento.nome || '',
       responsavel: treinamento.responsavel || '',
-      ultima_atualizacao: treinamento.ultima_atualizacao || '',
+      ultima_atualizacao: normalizeDateToInput(treinamento.ultima_atualizacao),
       departamento:
         departamentos.find((dep) => dep.id === treinamento.departamento)?.nome ||
         formTreinamento.departamento ||

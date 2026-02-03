@@ -1,0 +1,52 @@
+:root {
+  --text-scale: 0.85;
+  --brand-navy: #1a1f3a;
+  --brand-navy-2: #1f2649;
+  --brand-gold: #c3996b;
+  --brand-cream: #f6f7fb;
+  --brand-line: #e4e6f1;
+  --text-primary: #232634;
+  --text-muted: #6b7280;
+  --surface: #ffffff;
+  --surface-alt: #f3f4f8;
+  --shadow-soft: 0 10px 24px rgba(20, 24, 40, 0.08);
+  --shadow-hard: 0 6px 14px rgba(20, 24, 40, 0.14);
+  --radius-lg: 16px;
+  --radius-md: 10px;
+  --radius-sm: 6px;
+  --header-height: 64px;
+  --sidebar-width: 280px;
+  --bg-canvas: #f6f7fb;
+}
+
+body {
+  background: var(--bg-canvas);
+}
+
+body {
+  font-size: calc(16px * var(--text-scale));
+}
+
+h1 {
+  font-size: 2rem;
+}
+
+h2 {
+  font-size: 1.5rem;
+}
+
+h3 {
+  font-size: 1.25rem;
+}
+
+h4 {
+  font-size: 1.1rem;
+}
+
+h5 {
+  font-size: 1rem;
+}
+
+h6 {
+  font-size: 0.9rem;
+}

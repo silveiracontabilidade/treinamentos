@@ -9,7 +9,7 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() == "true"
 
 ALLOWED_HOSTS = [
     host.strip()
-    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "10.0.0.7,localhost,127.0.0.1").split(",")
+    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "10.0.0.6,localhost,127.0.0.1").split(",")
     if host.strip()
 ]
 
@@ -17,7 +17,7 @@ CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in os.environ.get(
         "DJANGO_CSRF_TRUSTED_ORIGINS",
-        "http://10.0.0.7:4174,http://localhost:4174",
+        "http://10.0.0.6:4174,http://localhost:4174",
     ).split(",")
     if origin.strip()
 ]

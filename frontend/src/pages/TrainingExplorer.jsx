@@ -13,6 +13,16 @@ const formatDate = (dateStr) => {
   return dateStr;
 };
 
+const getVideoSrc = (value) => {
+  if (!value) return '';
+  const trimmed = value.trim();
+  if (trimmed.startsWith('<iframe')) {
+    const match = trimmed.match(/src=["']([^"']+)["']/i);
+    return match ? match[1] : '';
+  }
+  return trimmed;
+};
+
 const TrainingExplorer = ({
   departamentos,
   carregando,
@@ -157,7 +167,7 @@ const TrainingExplorer = ({
                       <h2>{moduloSelecionado.titulo}</h2>
                       <p>{moduloSelecionado.descricao}</p>
                       <iframe
-                        src={moduloSelecionado.video_iframe || moduloSelecionado.video}
+                        src={getVideoSrc(moduloSelecionado.video_iframe || moduloSelecionado.video)}
                         title={moduloSelecionado.titulo}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen

@@ -172,7 +172,8 @@ const AdminDashboard = () => {
       }
     }
     const payload = {
-      ...formTreinamento,
+      nome: formTreinamento.nome,
+      responsavel: formTreinamento.responsavel,
       departamento: departamentoId,
     };
     if (formTreinamento.id) {
@@ -367,8 +368,9 @@ const AdminDashboard = () => {
                 Codigo
                 <input
                   type="text"
-                  value={formTreinamento.codigo}
-                  onChange={(event) => setFormTreinamento({ ...formTreinamento, codigo: event.target.value })}
+                  value={formTreinamento.codigo || ''}
+                  placeholder="Gerado automaticamente"
+                  disabled
                 />
               </label>
               <label>
@@ -392,9 +394,7 @@ const AdminDashboard = () => {
                 <input
                   type="date"
                   value={formTreinamento.ultima_atualizacao || ''}
-                  onChange={(event) =>
-                    setFormTreinamento({ ...formTreinamento, ultima_atualizacao: event.target.value })
-                  }
+                  disabled
                 />
               </label>
               <label>

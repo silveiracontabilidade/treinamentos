@@ -30,6 +30,9 @@ class TreinamentoSerializer(serializers.ModelSerializer):
             "departamento",
             "modulos",
         ]
+        extra_kwargs = {
+            "codigo": {"required": False, "allow_blank": True},
+        }
 
 
 class DepartamentoSerializer(serializers.ModelSerializer):

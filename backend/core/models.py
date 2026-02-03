@@ -15,7 +15,7 @@ class Treinamento(models.Model):
     codigo = models.CharField(max_length=50)
     nome = models.CharField(max_length=255)
     responsavel = models.CharField(max_length=255)
-    ultima_atualizacao = models.DateField(null=True, blank=True)
+    ultima_atualizacao = models.DateField(auto_now=True)
     departamento = models.ForeignKey(Departamento, on_delete=models.CASCADE, related_name="treinamentos")
 
     class Meta:
@@ -23,6 +23,19 @@ class Treinamento(models.Model):
 
     def __str__(self) -> str:
         return self.nome
+
+    def save(self, *args, **kwargs):
+        if not self.codigo:
+            ultimo_id = (
+                Treinamento.objects.exclude(codigo__isnull=True)
+                .exclude(codigo__exact="")
+                .order_by("-id")
+                .values_list("id", flat=True)
+                .first()
+            )
+            proximo = (ultimo_id or 0) + 1
+            self.codigo = f"TRN-{proximo:04d}"
+        super().save(*args, **kwargs)
 
 
 class Modulo(models.Model):

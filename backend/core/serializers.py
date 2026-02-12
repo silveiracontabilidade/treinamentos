@@ -13,7 +13,7 @@ from .models import (
 class ModuloSerializer(serializers.ModelSerializer):
     class Meta:
         model = Modulo
-        fields = ["id", "titulo", "descricao", "video_iframe", "treinamento"]
+        fields = ["id", "titulo", "descricao", "video_iframe", "video_origem", "treinamento"]
 
 
 class TreinamentoSerializer(serializers.ModelSerializer):

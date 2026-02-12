@@ -30,6 +30,7 @@ class Command(BaseCommand):
             defaults={
                 "descricao": "Visao geral das etapas, prazos e pontos criticos da rotina fiscal.",
                 "video_iframe": "https://www.youtube.com/embed/dQw4w9WgXcQ",
+                "video_origem": "youtube",
             },
         )
 
@@ -39,6 +40,7 @@ class Command(BaseCommand):
             defaults={
                 "descricao": "Checklist detalhado para garantir conferencias e validacoes.",
                 "video_iframe": "https://www.youtube.com/embed/oHg5SJYRHA0",
+                "video_origem": "youtube",
             },
         )
 
@@ -48,6 +50,7 @@ class Command(BaseCommand):
             defaults={
                 "descricao": "Como organizar prazos, times e entregas para o fechamento.",
                 "video_iframe": "https://www.youtube.com/embed/aqz-KE-bpKQ",
+                "video_origem": "youtube",
             },
         )
 
@@ -57,6 +60,7 @@ class Command(BaseCommand):
             defaults={
                 "descricao": "Pontos de atencao e validacoes finais com o cliente.",
                 "video_iframe": "https://www.youtube.com/embed/ysz5S6PUM-U",
+                "video_origem": "youtube",
             },
         )
 
@@ -66,6 +70,7 @@ class Command(BaseCommand):
             defaults={
                 "descricao": "Modelos de comunicacao e padroes de retorno ao cliente.",
                 "video_iframe": "https://www.youtube.com/embed/3JZ_D3ELwOQ",
+                "video_origem": "youtube",
             },
         )
 

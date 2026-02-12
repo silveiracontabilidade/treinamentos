@@ -29,6 +29,14 @@ const normalizeDateToInput = (value) => {
   return str;
 };
 
+const inferVideoOrigem = (value) => {
+  if (!value) return 'youtube';
+  const normalized = value.toLowerCase();
+  if (normalized.includes('canva.com')) return 'canva';
+  if (normalized.includes('youtu')) return 'youtube';
+  return 'iframe';
+};
+
 const AdminDashboard = () => {
   const [departamentos, setDepartamentos] = useState([]);
   const [treinamentos, setTreinamentos] = useState([]);
@@ -51,6 +59,7 @@ const AdminDashboard = () => {
     titulo: '',
     descricao: '',
     video_iframe: '',
+    video_origem: 'youtube',
   });
 
   const [filters, setFilters] = useState({
@@ -61,6 +70,17 @@ const AdminDashboard = () => {
     departamento: '',
   });
   const [sort, setSort] = useState({ key: 'nome', direction: 'asc' });
+  const videoPlaceholders = {
+    youtube: 'https://www.youtube.com/watch?v=...',
+    canva: 'https://www.canva.com/design/.../view?embed',
+    iframe: '<iframe src="..."></iframe>',
+  };
+  const videoHints = {
+    youtube: 'Aceita link do YouTube ou embed. O sistema ajusta se precisar.',
+    canva: 'Use o link de embed do Canva (Share > Embed).',
+    iframe: 'Cole o iframe completo ou apenas o src.',
+  };
+  const videoOrigemAtual = formModulo.video_origem || inferVideoOrigem(formModulo.video_iframe);
 
   const carregarTudo = async () => {
     try {
@@ -211,7 +231,7 @@ const AdminDashboard = () => {
   }, [formTreinamento.id, modulos]);
 
   const abrirModalModulo = () => {
-    setFormModulo({ titulo: '', descricao: '', video_iframe: '' });
+    setFormModulo({ titulo: '', descricao: '', video_iframe: '', video_origem: 'youtube' });
     setModuloModalMode('create');
     setShowModuloModal(true);
   };
@@ -222,6 +242,7 @@ const AdminDashboard = () => {
       titulo: modulo.titulo || '',
       descricao: modulo.descricao || '',
       video_iframe: modulo.video_iframe || '',
+      video_origem: modulo.video_origem || inferVideoOrigem(modulo.video_iframe || ''),
     });
     setModuloModalMode('edit');
     setShowModuloModal(true);
@@ -235,6 +256,7 @@ const AdminDashboard = () => {
         titulo: formModulo.titulo,
         descricao: formModulo.descricao,
         video_iframe: formModulo.video_iframe,
+        video_origem: formModulo.video_origem || inferVideoOrigem(formModulo.video_iframe),
         treinamento: formTreinamento.id,
       });
     } else {
@@ -242,6 +264,7 @@ const AdminDashboard = () => {
         titulo: formModulo.titulo,
         descricao: formModulo.descricao,
         video_iframe: formModulo.video_iframe,
+        video_origem: formModulo.video_origem || inferVideoOrigem(formModulo.video_iframe),
         treinamento: formTreinamento.id,
       });
     }
@@ -524,12 +547,27 @@ const AdminDashboard = () => {
                   />
                 </label>
                 <label>
-                  Link iframe
+                  Origem do video
+                  <select
+                    value={videoOrigemAtual}
+                    onChange={(event) => setFormModulo({ ...formModulo, video_origem: event.target.value })}
+                  >
+                    <option value="youtube">YouTube</option>
+                    <option value="canva">Canva</option>
+                    <option value="iframe">Outro/Iframe</option>
+                  </select>
+                </label>
+                <label>
+                  Link do video
                   <input
                     type="text"
                     value={formModulo.video_iframe}
+                    placeholder={videoPlaceholders[videoOrigemAtual]}
                     onChange={(event) => setFormModulo({ ...formModulo, video_iframe: event.target.value })}
                   />
+                  <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                    {videoHints[videoOrigemAtual]}
+                  </span>
                 </label>
               </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>

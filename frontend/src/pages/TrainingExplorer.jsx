@@ -13,7 +13,7 @@ const formatDate = (dateStr) => {
   return dateStr;
 };
 
-const getVideoSrc = (value) => {
+const extractIframeSrc = (value) => {
   if (!value) return '';
   const trimmed = value.trim();
   if (trimmed.startsWith('<iframe')) {
@@ -21,6 +21,95 @@ const getVideoSrc = (value) => {
     return match ? match[1] : '';
   }
   return trimmed;
+};
+
+const inferVideoOrigem = (value) => {
+  if (!value) return 'iframe';
+  const normalized = value.toLowerCase();
+  if (normalized.includes('canva.com')) return 'canva';
+  if (normalized.includes('youtu')) return 'youtube';
+  return 'iframe';
+};
+
+const buildYouTubeEmbed = (value) => {
+  const trimmed = extractIframeSrc(value);
+  if (!trimmed) return '';
+  let url;
+  try {
+    url = new URL(trimmed);
+  } catch (error) {
+    return trimmed;
+  }
+
+  const hostname = url.hostname.replace(/^www\./, '');
+  let videoId = '';
+
+  if (hostname === 'youtu.be') {
+    videoId = url.pathname.split('/')[1] || '';
+  } else if (hostname.endsWith('youtube.com') || hostname.endsWith('youtube-nocookie.com')) {
+    if (url.pathname.startsWith('/embed/')) {
+      videoId = url.pathname.split('/')[2] || '';
+    } else if (url.pathname.startsWith('/shorts/')) {
+      videoId = url.pathname.split('/')[2] || '';
+    } else if (url.pathname.startsWith('/live/')) {
+      videoId = url.pathname.split('/')[2] || '';
+    } else if (url.pathname === '/watch') {
+      videoId = url.searchParams.get('v') || '';
+    }
+  }
+
+  if (!videoId) {
+    const listId = url.searchParams.get('list');
+    if (listId) {
+      return `https://www.youtube.com/embed/videoseries?list=${listId}`;
+    }
+    return trimmed;
+  }
+
+  let embedUrl = `https://www.youtube.com/embed/${videoId}`;
+  const start = url.searchParams.get('start') || url.searchParams.get('t');
+  if (start && /^\d+$/.test(start)) {
+    embedUrl += `?start=${start}`;
+  }
+  return embedUrl;
+};
+
+const buildCanvaEmbed = (value) => {
+  const trimmed = extractIframeSrc(value);
+  if (!trimmed) return '';
+  let url;
+  try {
+    url = new URL(trimmed);
+  } catch (error) {
+    return trimmed;
+  }
+
+  if (!url.hostname.includes('canva.com')) {
+    return trimmed;
+  }
+
+  const keys = [...url.searchParams.keys()];
+  keys.forEach((key) => {
+    if (key.startsWith('utm_') || key === 'utlId') {
+      url.searchParams.delete(key);
+    }
+  });
+  if (!url.searchParams.has('embed')) {
+    url.searchParams.set('embed', '1');
+  }
+  return url.toString();
+};
+
+const getVideoSrc = (value, origem) => {
+  if (!value) return '';
+  const resolvedOrigem = origem || inferVideoOrigem(value);
+  if (resolvedOrigem === 'youtube') {
+    return buildYouTubeEmbed(value);
+  }
+  if (resolvedOrigem === 'canva') {
+    return buildCanvaEmbed(value);
+  }
+  return extractIframeSrc(value);
 };
 
 const TrainingExplorer = ({
@@ -167,7 +256,10 @@ const TrainingExplorer = ({
                       <h2>{moduloSelecionado.titulo}</h2>
                       <p>{moduloSelecionado.descricao}</p>
                       <iframe
-                        src={getVideoSrc(moduloSelecionado.video_iframe || moduloSelecionado.video)}
+                        src={getVideoSrc(
+                          moduloSelecionado.video_iframe || moduloSelecionado.video,
+                          moduloSelecionado.video_origem
+                        )}
                         title={moduloSelecionado.titulo}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen

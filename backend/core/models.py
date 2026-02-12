@@ -43,6 +43,15 @@ class Modulo(models.Model):
     titulo = models.CharField(max_length=255)
     descricao = models.TextField()
     video_iframe = models.TextField(blank=True)
+    video_origem = models.CharField(
+        max_length=20,
+        choices=[
+            ("youtube", "YouTube"),
+            ("canva", "Canva"),
+            ("iframe", "Outro/Iframe"),
+        ],
+        default="youtube",
+    )
 
     class Meta:
         db_table = "MODULOS"

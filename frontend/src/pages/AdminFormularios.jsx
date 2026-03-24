@@ -46,6 +46,8 @@ const AdminFormularios = () => {
     { id: null, texto: '', correta: false },
   ]);
 
+  const confirmarExclusao = (mensagem) => window.confirm(mensagem);
+
   const carregarModelos = async () => {
     try {
       const data = await fetchFormulariosModelo();
@@ -111,6 +113,7 @@ const AdminFormularios = () => {
 
   const excluirModelo = async (modeloId) => {
     if (!modeloId) return;
+    if (!confirmarExclusao('Tem certeza que deseja excluir este modelo de formulario?')) return;
     try {
       await deleteFormularioModelo(modeloId);
       if (modeloSelecionadoId === modeloId) {
@@ -176,6 +179,7 @@ const AdminFormularios = () => {
   };
 
   const removerAlternativa = (index) => {
+    if (!confirmarExclusao('Tem certeza que deseja remover esta alternativa?')) return;
     setFormAlternativas((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -250,6 +254,7 @@ const AdminFormularios = () => {
 
   const excluirPergunta = async (perguntaId) => {
     if (!perguntaId) return;
+    if (!confirmarExclusao('Tem certeza que deseja excluir esta pergunta?')) return;
     await deleteEficaciaPergunta(perguntaId);
     await carregarModelos();
   };

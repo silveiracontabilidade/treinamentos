@@ -38,6 +38,8 @@ const AdminUsers = () => {
     is_active: true,
   });
 
+  const confirmarExclusao = (mensagem) => window.confirm(mensagem);
+
   const carregar = async () => {
     try {
       const data = await fetchUsuarios();
@@ -236,7 +238,10 @@ const AdminUsers = () => {
                         <button
                           type="button"
                           className="icon-button icon-button--danger"
-                          onClick={() => deleteUsuario(u.id).then(carregar)}
+                          onClick={() => {
+                            if (!confirmarExclusao('Tem certeza que deseja excluir este usuario?')) return;
+                            deleteUsuario(u.id).then(carregar);
+                          }}
                           title="Excluir"
                           aria-label="Excluir"
                         >

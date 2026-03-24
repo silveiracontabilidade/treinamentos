@@ -104,6 +104,8 @@ const AdminDashboard = () => {
     { id: null, texto: '', correta: false },
   ]);
 
+  const confirmarExclusao = (mensagem) => window.confirm(mensagem);
+
   const [filters, setFilters] = useState({
     codigo: '',
     nome: '',
@@ -470,6 +472,7 @@ const AdminDashboard = () => {
   };
 
   const removerAlternativa = (index) => {
+    if (!confirmarExclusao('Tem certeza que deseja remover esta alternativa?')) return;
     setFormAlternativas((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -544,12 +547,20 @@ const AdminDashboard = () => {
 
   const excluirPergunta = async (perguntaId) => {
     if (!perguntaId) return;
+    if (!confirmarExclusao('Tem certeza que deseja excluir esta pergunta?')) return;
     await deleteEficaciaPergunta(perguntaId);
     await carregarEficacia(formTreinamento.id);
   };
 
   const excluirTreinamento = async (id) => {
+    if (!confirmarExclusao('Tem certeza que deseja excluir este treinamento?')) return;
     await deleteTreinamento(id);
+    await carregarTudo();
+  };
+
+  const excluirModulo = async (id) => {
+    if (!confirmarExclusao('Tem certeza que deseja excluir este modulo?')) return;
+    await deleteModulo(id);
     await carregarTudo();
   };
 
@@ -857,7 +868,7 @@ const AdminDashboard = () => {
                     <button
                       type="button"
                       className="icon-button icon-button--danger module-icon"
-                      onClick={() => deleteModulo(mod.id).then(carregarTudo)}
+                      onClick={() => excluirModulo(mod.id)}
                       title="Excluir"
                       aria-label="Excluir"
                     >

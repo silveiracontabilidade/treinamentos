@@ -9,6 +9,10 @@ from .views import (
     TreinamentoMatriculaViewSet,
     ModuloProgressoViewSet,
     UsuarioViewSet,
+    EficaciaQuestionarioViewSet,
+    EficaciaPerguntaViewSet,
+    EficaciaAlternativaViewSet,
+    FormularioModeloViewSet,
     EmailLoginView,
     IniciarTreinamentoView,
     ConcluirModuloView,
@@ -24,6 +28,10 @@ router.register(r"colaboradores", ColaboradorViewSet)
 router.register(r"matriculas", TreinamentoMatriculaViewSet)
 router.register(r"progresso", ModuloProgressoViewSet)
 router.register(r"usuarios", UsuarioViewSet)
+router.register(r"eficacia-questionarios", EficaciaQuestionarioViewSet)
+router.register(r"eficacia-perguntas", EficaciaPerguntaViewSet)
+router.register(r"eficacia-alternativas", EficaciaAlternativaViewSet)
+router.register(r"formularios-modelo", FormularioModeloViewSet, basename="formularios-modelo")
 
 urlpatterns = [
     path("", include(router.urls)),

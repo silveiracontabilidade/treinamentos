@@ -21,6 +21,24 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    if (status === 401 || status === 403) {
+      const isAdminRoute = window.location.pathname.startsWith('/admin');
+      if (isAdminRoute) {
+        clearAdminToken();
+        window.location.href = '/admin/login';
+      } else {
+        clearUserToken();
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const fetchCatalogo = async () => {
   const { data } = await api.get('/api/public/catalogo/');
   return data;
@@ -85,6 +103,18 @@ export const fetchTreinamentos = async () => {
   return data.results || data;
 };
 
+export const fetchEficaciaQuestionario = async (treinamentoId) => {
+  const { data } = await api.get(`/api/treinamentos/${treinamentoId}/eficacia/`);
+  return data;
+};
+
+export const responderEficacia = async (treinamentoId, respostas) => {
+  const { data } = await api.post(`/api/treinamentos/${treinamentoId}/eficacia/responder/`, {
+    respostas,
+  });
+  return data;
+};
+
 export const createTreinamento = async (payload) => {
   const { data } = await api.post('/api/treinamentos/', payload);
   return data;
@@ -97,6 +127,85 @@ export const updateTreinamento = async (id, payload) => {
 
 export const deleteTreinamento = async (id) => {
   await api.delete(`/api/treinamentos/${id}/`);
+};
+
+export const fetchEficaciaQuestionarioAdmin = async (treinamentoId) => {
+  const { data } = await api.get(`/api/eficacia-questionarios/?treinamento=${treinamentoId}`);
+  return data.results || data;
+};
+
+export const createEficaciaQuestionario = async (payload) => {
+  const { data } = await api.post('/api/eficacia-questionarios/', payload);
+  return data;
+};
+
+export const updateEficaciaQuestionario = async (id, payload) => {
+  const { data } = await api.put(`/api/eficacia-questionarios/${id}/`, payload);
+  return data;
+};
+
+export const deleteEficaciaQuestionario = async (id) => {
+  await api.delete(`/api/eficacia-questionarios/${id}/`);
+};
+
+export const aplicarModeloEficacia = async (treinamentoId, modeloId) => {
+  const { data } = await api.post('/api/eficacia-questionarios/aplicar-modelo/', {
+    treinamento_id: treinamentoId,
+    modelo_id: modeloId,
+  });
+  return data;
+};
+
+export const clonarEficaciaQuestionario = async (id) => {
+  const { data } = await api.post(`/api/eficacia-questionarios/${id}/clonar/`);
+  return data;
+};
+
+export const fetchFormulariosModelo = async () => {
+  const { data } = await api.get('/api/formularios-modelo/');
+  return data.results || data;
+};
+
+export const createFormularioModelo = async (payload) => {
+  const { data } = await api.post('/api/formularios-modelo/', payload);
+  return data;
+};
+
+export const updateFormularioModelo = async (id, payload) => {
+  const { data } = await api.put(`/api/formularios-modelo/${id}/`, payload);
+  return data;
+};
+
+export const deleteFormularioModelo = async (id) => {
+  await api.delete(`/api/formularios-modelo/${id}/`);
+};
+
+export const createEficaciaPergunta = async (payload) => {
+  const { data } = await api.post('/api/eficacia-perguntas/', payload);
+  return data;
+};
+
+export const updateEficaciaPergunta = async (id, payload) => {
+  const { data } = await api.put(`/api/eficacia-perguntas/${id}/`, payload);
+  return data;
+};
+
+export const deleteEficaciaPergunta = async (id) => {
+  await api.delete(`/api/eficacia-perguntas/${id}/`);
+};
+
+export const createEficaciaAlternativa = async (payload) => {
+  const { data } = await api.post('/api/eficacia-alternativas/', payload);
+  return data;
+};
+
+export const updateEficaciaAlternativa = async (id, payload) => {
+  const { data } = await api.put(`/api/eficacia-alternativas/${id}/`, payload);
+  return data;
+};
+
+export const deleteEficaciaAlternativa = async (id) => {
+  await api.delete(`/api/eficacia-alternativas/${id}/`);
 };
 
 export const fetchModulos = async () => {

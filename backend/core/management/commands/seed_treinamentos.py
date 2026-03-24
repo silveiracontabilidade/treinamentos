@@ -14,15 +14,15 @@ class Command(BaseCommand):
             codigo="FISC-001",
             nome="Rotinas de Apuracao",
             responsavel="Carla Andrade",
-            departamento=dep_fiscal,
         )
+        tr1.departamentos.set([dep_fiscal])
 
         tr2, _ = Treinamento.objects.get_or_create(
             codigo="CONT-014",
             nome="Fechamento Mensal",
             responsavel="Rafael Lopes",
-            departamento=dep_contabil,
         )
+        tr2.departamentos.set([dep_contabil])
 
         Modulo.objects.get_or_create(
             treinamento=tr1,

@@ -38,6 +38,9 @@ const Header = ({ usuarioEmail, meusTreinamentos, perfil, onAdminLogout, onUserL
                     <li>
                       <NavLink to="/admin">Treinamentos</NavLink>
                     </li>
+                    <li>
+                      <NavLink to="/admin/formularios">Formularios</NavLink>
+                    </li>
                   </ul>
                 )}
               </li>

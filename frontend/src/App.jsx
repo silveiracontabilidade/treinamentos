@@ -1,17 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import Header from './components/Header.jsx';
 import RequireAdmin from './components/RequireAdmin.jsx';
+import RequireUser from './components/RequireUser.jsx';
 import TrainingExplorer from './pages/TrainingExplorer.jsx';
 import TrainingLogin from './pages/TrainingLogin.jsx';
 import AdminLogin from './pages/AdminLogin.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import AdminUsers from './pages/AdminUsers.jsx';
+import AdminFormularios from './pages/AdminFormularios.jsx';
 import {
   fetchCatalogo,
   iniciarTreinamento,
   concluirModulo,
-  loginEmail,
   clearAdminToken,
   loginColaborador,
   setUserToken,
@@ -26,6 +27,8 @@ const AppShell = () => {
   const [userToken, setUserTokenState] = useState(localStorage.getItem('user_token') || '');
   const [progresso, setProgresso] = useState({});
   const [treinamentoStatus, setTreinamentoStatus] = useState({});
+  const [matriculas, setMatriculas] = useState([]);
+  const [colaboradorDepartamentoId, setColaboradorDepartamentoId] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erroCatalogo, setErroCatalogo] = useState('');
 
@@ -73,6 +76,8 @@ const AppShell = () => {
           };
         });
         setTreinamentoStatus(statusMap);
+        setMatriculas(data.matriculas || []);
+        setColaboradorDepartamentoId(data.colaborador?.departamento_id || null);
       } catch (error) {
         console.error('Falha ao carregar progresso.', error);
       }
@@ -110,6 +115,8 @@ const AppShell = () => {
           };
         });
         setTreinamentoStatus(statusMap);
+        setMatriculas(progressoData.matriculas || []);
+        setColaboradorDepartamentoId(progressoData.colaborador?.departamento_id || null);
       } catch (error) {
         console.error('Falha ao carregar progresso.', error);
       }
@@ -128,11 +135,70 @@ const AppShell = () => {
         iniciadoEm: new Date().toISOString(),
       },
     }));
+    setMatriculas((prev) => {
+      const existente = prev.find((m) => m.treinamento_id === treinamentoId);
+      if (existente) {
+        return prev.map((m) =>
+          m.treinamento_id === treinamentoId
+            ? { ...m, status: 'em_andamento', iniciado_em: m.iniciado_em || new Date().toISOString() }
+            : m
+        );
+      }
+      return [
+        ...prev,
+        {
+          treinamento_id: treinamentoId,
+          status: 'em_andamento',
+          percentual_conclusao: 0,
+          iniciado_em: new Date().toISOString(),
+          concluido_em: null,
+        },
+      ];
+    });
     try {
       await iniciarTreinamento(usuarioEmail, treinamentoId);
     } catch (error) {
       console.error('Falha ao iniciar treinamento.', error);
     }
+  };
+
+  const handleEficaciaRespondida = (matricula) => {
+    if (!matricula) return;
+    setTreinamentoStatus((prev) => ({
+      ...prev,
+      [matricula.treinamento]: {
+        status: matricula.status,
+        iniciadoEm: matricula.iniciado_em,
+        concluidoEm: matricula.concluido_em,
+        percentual: matricula.percentual_conclusao,
+      },
+    }));
+    setMatriculas((prev) => {
+      const existe = prev.find((m) => m.treinamento_id === matricula.treinamento);
+      if (existe) {
+        return prev.map((m) =>
+          m.treinamento_id === matricula.treinamento
+            ? {
+                ...m,
+                status: matricula.status,
+                percentual_conclusao: matricula.percentual_conclusao,
+                iniciado_em: matricula.iniciado_em,
+                concluido_em: matricula.concluido_em,
+              }
+            : m
+        );
+      }
+      return [
+        ...prev,
+        {
+          treinamento_id: matricula.treinamento,
+          status: matricula.status,
+          percentual_conclusao: matricula.percentual_conclusao,
+          iniciado_em: matricula.iniciado_em,
+          concluido_em: matricula.concluido_em,
+        },
+      ];
+    });
   };
 
   const handleToggleModulo = async (treinamentoId, moduloId) => {
@@ -151,27 +217,69 @@ const AppShell = () => {
 
     try {
       const concluido = !progresso[moduloId];
-      await concluirModulo(usuarioEmail, moduloId, concluido);
+      const data = await concluirModulo(usuarioEmail, moduloId, concluido);
+      if (data?.matricula) {
+        setTreinamentoStatus((prev) => ({
+          ...prev,
+          [data.matricula.treinamento]: {
+            status: data.matricula.status,
+            iniciadoEm: data.matricula.iniciado_em,
+            concluidoEm: data.matricula.concluido_em,
+            percentual: data.matricula.percentual_conclusao,
+          },
+        }));
+        setMatriculas((prev) => {
+          const existe = prev.find((m) => m.treinamento_id === data.matricula.treinamento);
+          if (existe) {
+            return prev.map((m) =>
+              m.treinamento_id === data.matricula.treinamento
+                ? {
+                    ...m,
+                    status: data.matricula.status,
+                    percentual_conclusao: data.matricula.percentual_conclusao,
+                    iniciado_em: data.matricula.iniciado_em,
+                    concluido_em: data.matricula.concluido_em,
+                  }
+                : m
+            );
+          }
+          return [
+            ...prev,
+            {
+              treinamento_id: data.matricula.treinamento,
+              status: data.matricula.status,
+              percentual_conclusao: data.matricula.percentual_conclusao,
+              iniciado_em: data.matricula.iniciado_em,
+              concluido_em: data.matricula.concluido_em,
+            },
+          ];
+        });
+      }
     } catch (error) {
       console.error('Falha ao atualizar modulo.', error);
     }
   };
 
   const meusTreinamentos = useMemo(() => {
-    const lista = [];
+    const lista = new Map();
     departamentos.forEach((dep) => {
       dep.treinamentos.forEach((tr) => {
+        if (lista.has(tr.id)) return;
         const modulos = tr.modulos || [];
         const total = modulos.length;
         const concluidos = modulos.filter((mod) => progresso[mod.id]).length;
         const percentual = total ? Math.round((concluidos / total) * 100) : 0;
         let status = 'nao_iniciado';
-        if (percentual === 100) status = 'concluido';
-        else if (percentual > 0 || treinamentoStatus[tr.id]?.status === 'em_andamento') {
+        const statusApi = treinamentoStatus[tr.id]?.status;
+        if (statusApi === 'aguardando_eficacia') {
+          status = 'aguardando_eficacia';
+        } else if (statusApi === 'concluido' || percentual === 100) {
+          status = 'concluido';
+        } else if (percentual > 0 || statusApi === 'em_andamento') {
           status = 'em_andamento';
         }
 
-        lista.push({
+        lista.set(tr.id, {
           id: tr.id,
           nome: tr.nome,
           status,
@@ -179,7 +287,7 @@ const AppShell = () => {
         });
       });
     });
-    return lista;
+    return Array.from(lista.values());
   }, [departamentos, progresso, treinamentoStatus]);
 
   const perfil = localStorage.getItem('admin_token') ? 'Admin' : 'Colaborador';
@@ -195,8 +303,6 @@ const AppShell = () => {
     setUsuarioEmail('');
     setUserTokenState('');
   };
-
-  const bloqueiaTreinamentos = !localStorage.getItem('user_token') && location.pathname === '/';
 
   return (
     <div className="app-shell">
@@ -214,20 +320,21 @@ const AppShell = () => {
         <Route
           path="/"
           element={
-            bloqueiaTreinamentos ? (
-              <Navigate to="/login" replace />
-            ) : (
+            <RequireUser>
               <TrainingExplorer
                 departamentos={departamentos}
                 carregando={carregando}
                 erroCatalogo={erroCatalogo}
                 progresso={progresso}
                 treinamentoStatus={treinamentoStatus}
+                matriculas={matriculas}
+                colaboradorDepartamentoId={colaboradorDepartamentoId}
+                onEficaciaRespondida={handleEficaciaRespondida}
                 onIniciar={handleIniciar}
                 onToggleModulo={handleToggleModulo}
                 meusTreinamentos={meusTreinamentos}
               />
-            )
+            </RequireUser>
           }
         />
         <Route path="/admin/login" element={<AdminLogin />} />
@@ -244,6 +351,14 @@ const AppShell = () => {
           element={
             <RequireAdmin>
               <AdminUsers />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/formularios"
+          element={
+            <RequireAdmin>
+              <AdminFormularios />
             </RequireAdmin>
           }
         />

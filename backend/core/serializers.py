@@ -28,6 +28,7 @@ class TreinamentoSerializer(serializers.ModelSerializer):
         queryset=Departamento.objects.all(),
         allow_empty=False,
     )
+    eficacia_ativa = serializers.SerializerMethodField()
 
     class Meta:
         model = Treinamento
@@ -39,6 +40,7 @@ class TreinamentoSerializer(serializers.ModelSerializer):
             "ultima_atualizacao",
             "departamentos",
             "modulos",
+            "eficacia_ativa",
         ]
         extra_kwargs = {
             "codigo": {"required": False, "allow_blank": True},
@@ -55,6 +57,11 @@ class TreinamentoSerializer(serializers.ModelSerializer):
                     {"departamentos": "Quando o departamento Geral esta selecionado, nenhum outro pode ser escolhido."}
                 )
         return attrs
+
+    def get_eficacia_ativa(self, obj):
+        if not getattr(obj, "pk", None):
+            return False
+        return obj.questionarios_eficacia.filter(ativo=True).exists()
 
 
 class DepartamentoSerializer(serializers.ModelSerializer):
@@ -219,6 +226,8 @@ class ConcluirModuloSerializer(serializers.Serializer):
 
 class UsuarioSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    departamento_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    departamento_nome = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = get_user_model()
@@ -231,22 +240,65 @@ class UsuarioSerializer(serializers.ModelSerializer):
             "is_staff",
             "is_active",
             "password",
+            "departamento_id",
+            "departamento_nome",
         ]
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        email = instance.email or instance.username
+        colaborador = Colaborador.objects.filter(email=email).select_related("departamento").first()
+        data["departamento_id"] = colaborador.departamento_id if colaborador else None
+        return data
+
+    def get_departamento_nome(self, instance):
+        email = instance.email or instance.username
+        colaborador = Colaborador.objects.filter(email=email).select_related("departamento").first()
+        if not colaborador or not colaborador.departamento:
+            return None
+        return colaborador.departamento.nome
+
+    def _sync_colaborador_departamento(self, user, departamento_id):
+        email = user.email or user.username
+        if not email:
+            return
+        nome = f"{user.first_name} {user.last_name}".strip() or email
+        colaborador, _ = Colaborador.objects.get_or_create(
+            email=email,
+            defaults={
+                "nome": nome,
+                "administrador": user.is_staff,
+            },
+        )
+        colaborador.nome = nome
+        colaborador.administrador = user.is_staff
+        if departamento_id:
+            colaborador.departamento = Departamento.objects.filter(id=departamento_id).first()
+        else:
+            colaborador.departamento = None
+        colaborador.save(update_fields=["nome", "administrador", "departamento"])
+
     def create(self, validated_data):
+        departamento_id = validated_data.pop("departamento_id", None) if "departamento_id" in validated_data else None
         password = validated_data.pop("password", None) or "Mudar123"
         user = self.Meta.model(**validated_data)
         user.set_password(password)
         user.save()
+        if "departamento_id" in self.initial_data:
+            self._sync_colaborador_departamento(user, departamento_id)
         return user
 
     def update(self, instance, validated_data):
+        departamento_id_present = "departamento_id" in validated_data
+        departamento_id = validated_data.pop("departamento_id", None) if departamento_id_present else None
         password = validated_data.pop("password", None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         if password:
             instance.set_password(password)
         instance.save()
+        if departamento_id_present:
+            self._sync_colaborador_departamento(instance, departamento_id)
         return instance
 
 

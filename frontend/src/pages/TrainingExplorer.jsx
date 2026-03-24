@@ -211,6 +211,13 @@ const TrainingExplorer = ({
     return [...perguntas].sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
   }, [eficaciaData]);
 
+  const formularioEficaciaAtivo = treinamentoSelecionado?.eficacia_ativa !== false;
+  const esconderFormularioEficacia =
+    !formularioEficaciaAtivo ||
+    (progressoAtual.percentual === 100 &&
+      eficaciaData?.disponivel === false &&
+      eficaciaData?.motivo === 'sem_questionario');
+
   const calcularPercentual = (treinamento) => {
     const modulos = treinamento?.modulos || [];
     const total = modulos.length;
@@ -256,6 +263,12 @@ const TrainingExplorer = ({
     return 'NÃO INICIADO';
   };
 
+  const matriculaAtual = useMemo(() => {
+    if (!treinamentoSelecionado) return null;
+    return matriculasPorTreinamento.get(treinamentoSelecionado.id) || null;
+  }, [matriculasPorTreinamento, treinamentoSelecionado]);
+  const treinamentoConcluido = matriculaAtual?.status === 'concluido';
+
   useEffect(() => {
     let ativo = true;
     const carregarEficacia = async () => {
@@ -263,6 +276,12 @@ const TrainingExplorer = ({
       setEficaciaData(null);
       setEficaciaResultado(null);
       return;
+      }
+      if (treinamentoSelecionado.eficacia_ativa === false) {
+        setEficaciaData(null);
+        setEficaciaResultado(null);
+        setEficaciaErro('');
+        return;
       }
       if (progressoAtual.percentual < 100) {
         setEficaciaData(null);
@@ -292,6 +311,7 @@ const TrainingExplorer = ({
   }, [treinamentoSelecionado, progressoAtual.percentual]);
 
   const abrirFormularioEficacia = () => {
+    if (treinamentoConcluido) return;
     setEficaciaRespostas({});
     setEficaciaErroModal('');
     setEficaciaModalAberto(true);
@@ -454,7 +474,19 @@ const TrainingExplorer = ({
                         type="button"
                         className="secondary"
                         onClick={() => onToggleModulo(treinamentoSelecionado.id, moduloSelecionado.id)}
-                        style={{ padding: '10px 16px', borderRadius: 999, border: 'none', background: progresso[moduloSelecionado.id] ? 'var(--brand-gold)' : 'var(--brand-navy)', color: '#fff', fontWeight: 600 }}
+                        disabled={treinamentoConcluido}
+                        style={{
+                          padding: '10px 16px',
+                          borderRadius: 999,
+                          border: 'none',
+                          background: progresso[moduloSelecionado.id]
+                            ? 'var(--brand-gold)'
+                            : 'var(--brand-navy)',
+                          color: '#fff',
+                          fontWeight: 600,
+                          opacity: treinamentoConcluido ? 0.6 : 1,
+                          cursor: treinamentoConcluido ? 'not-allowed' : 'pointer',
+                        }}
                       >
                         {progresso[moduloSelecionado.id] ? 'Desmarcar concluido' : 'Marcar como concluido'}
                       </button>
@@ -477,7 +509,12 @@ const TrainingExplorer = ({
                             <button
                               type="button"
                               onClick={() => onToggleModulo(treinamentoSelecionado.id, mod.id)}
-                              style={{ background: progresso[mod.id] ? 'var(--brand-gold)' : 'var(--brand-navy)' }}
+                              disabled={treinamentoConcluido}
+                              style={{
+                                background: progresso[mod.id] ? 'var(--brand-gold)' : 'var(--brand-navy)',
+                                opacity: treinamentoConcluido ? 0.6 : 1,
+                                cursor: treinamentoConcluido ? 'not-allowed' : 'pointer',
+                              }}
                             >
                               {progresso[mod.id] ? 'Concluido' : 'Marcar concluido'}
                             </button>
@@ -485,70 +522,78 @@ const TrainingExplorer = ({
                         </div>
                       ))}
                     </div>
-                    <div className="section-title">Formulario de eficacia</div>
-                    <div className="eficacia-panel">
-                      {progressoAtual.percentual < 100 && (
-                        <div style={{ color: 'var(--text-muted)' }}>
-                          Conclua todos os modulos para liberar o formulario.
-                        </div>
-                      )}
-                      {progressoAtual.percentual === 100 && (
-                        <>
-                          {eficaciaCarregando && <div>Carregando formulario...</div>}
-                          {!eficaciaCarregando && eficaciaData?.disponivel === false && (
+                    {!esconderFormularioEficacia && (
+                      <>
+                        <div className="section-title">Formulario de eficacia</div>
+                        <div className="eficacia-panel">
+                          {progressoAtual.percentual < 100 && (
                             <div style={{ color: 'var(--text-muted)' }}>
-                              Este treinamento nao possui formulario de eficacia.
+                              Conclua todos os modulos para liberar o formulario.
                             </div>
                           )}
-                          {!eficaciaCarregando && eficaciaData?.disponivel && (
+                          {progressoAtual.percentual === 100 && (
                             <>
-                              <div className="eficacia-meta">
-                                {eficaciaData.questionario.nota_minima != null ? (
-                                  <span>Nota minima: {eficaciaData.questionario.nota_minima}%</span>
-                                ) : (
-                                  <span>Formulario informativo</span>
-                                )}
-                                {eficaciaResultado && (
+                              {eficaciaCarregando && <div>Carregando formulario...</div>}
+                              {!eficaciaCarregando && eficaciaData?.disponivel === false && (
+                                <div style={{ color: 'var(--text-muted)' }}>
+                                  Este treinamento nao possui formulario de eficacia.
+                                </div>
+                              )}
+                              {!eficaciaCarregando && eficaciaData?.disponivel && (
+                                <>
+                                  <div className="eficacia-meta">
+                                    {eficaciaData.questionario.nota_minima != null ? (
+                                      <span>Nota minima: {eficaciaData.questionario.nota_minima}%</span>
+                                    ) : (
+                                      <span>Formulario informativo</span>
+                                    )}
+                                {eficaciaResultado && eficaciaData.questionario.nota_minima != null && (
                                   <span>
                                     Ultima nota: {eficaciaResultado.percentual}% (
                                     {eficaciaData.questionario.nota_minima == null
                                       ? 'Concluido'
                                       : eficaciaResultado.aprovado
-                                        ? 'Aprovado'
-                                        : 'Reprovado'}
-                                    )
-                                  </span>
-                                )}
-                              </div>
-                              {perguntasEficacia.length === 0 ? (
-                                <div style={{ color: 'var(--text-muted)' }}>
-                                  Formulario sem perguntas cadastradas.
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={abrirFormularioEficacia}
-                                  style={{
-                                    padding: '8px 16px',
-                                    borderRadius: 999,
-                                    border: 'none',
-                                    background: 'var(--brand-navy)',
-                                    color: '#fff',
-                                    fontWeight: 700,
-                                    cursor: 'pointer',
-                                  }}
-                                >
-                                  Responder formulario
-                                </button>
+                                            ? 'Aprovado'
+                                            : 'Reprovado'}
+                                        )
+                                      </span>
+                                    )}
+                                  </div>
+                                  {perguntasEficacia.length === 0 ? (
+                                    <div style={{ color: 'var(--text-muted)' }}>
+                                      Formulario sem perguntas cadastradas.
+                                    </div>
+                                  ) : treinamentoConcluido ? (
+                                    <div style={{ color: 'var(--text-muted)' }}>
+                                      Formulario ja concluido.
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={abrirFormularioEficacia}
+                                      style={{
+                                        padding: '8px 16px',
+                                        borderRadius: 999,
+                                        border: 'none',
+                                        background: 'var(--brand-navy)',
+                                        color: '#fff',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                      }}
+                                    >
+                                      Responder formulario
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                              {eficaciaErro && (
+                                <div style={{ color: '#b91c1c', fontWeight: 600 }}>{eficaciaErro}</div>
                               )}
                             </>
                           )}
-                          {eficaciaErro && (
-                            <div style={{ color: '#b91c1c', fontWeight: 600 }}>{eficaciaErro}</div>
-                          )}
-                        </>
-                      )}
-                    </div>
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
               </>

@@ -46,7 +46,11 @@ class DepartamentoViewSet(viewsets.ModelViewSet):
 
 
 class TreinamentoViewSet(viewsets.ModelViewSet):
-    queryset = Treinamento.objects.prefetch_related("departamentos", "modulos")
+    queryset = Treinamento.objects.prefetch_related(
+        "departamentos",
+        "modulos",
+        "questionarios_eficacia",
+    )
     serializer_class = TreinamentoSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -325,7 +329,10 @@ class EficaciaQuestionarioViewSet(viewsets.ModelViewSet):
             TreinamentoMatricula.objects.filter(
                 treinamento=questionario.treinamento,
                 percentual_conclusao=100,
-            ).exclude(colaborador_id__in=aprovados).update(status="aguardando_eficacia", concluido_em=None)
+            ).exclude(colaborador_id__in=aprovados).exclude(status="concluido").update(
+                status="aguardando_eficacia",
+                concluido_em=None,
+            )
         else:
             TreinamentoMatricula.objects.filter(
                 treinamento=questionario.treinamento,
@@ -607,7 +614,10 @@ class PublicCatalogoView(APIView):
             email=email,
             defaults={"nome": email.split("@", maxsplit=1)[0], "administrador": False},
         )
-        departamentos = Departamento.objects.prefetch_related("treinamentos__modulos")
+        departamentos = Departamento.objects.prefetch_related(
+            "treinamentos__modulos",
+            "treinamentos__questionarios_eficacia",
+        )
         serializer = DepartamentoSerializer(departamentos, many=True)
         return Response(serializer.data)
 

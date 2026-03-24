@@ -7,6 +7,7 @@ import {
   deleteUsuario,
   resetUsuarioSenha,
   fetchUsuarioTreinamentos,
+  fetchDepartamentos,
 } from '../services/api.js';
 
 const AdminUsers = () => {
@@ -22,6 +23,7 @@ const AdminUsers = () => {
   const [sort, setSort] = useState({ key: 'email', direction: 'asc' });
   const [view, setView] = useState('list');
   const [treinamentos, setTreinamentos] = useState([]);
+  const [departamentos, setDepartamentos] = useState([]);
   const [treinoFilters, setTreinoFilters] = useState({
     nome: '',
     iniciado_em: '',
@@ -36,6 +38,7 @@ const AdminUsers = () => {
     last_name: '',
     is_staff: false,
     is_active: true,
+    departamento_id: '',
   });
 
   const confirmarExclusao = (mensagem) => window.confirm(mensagem);
@@ -49,8 +52,18 @@ const AdminUsers = () => {
     }
   };
 
+  const carregarDepartamentos = async () => {
+    try {
+      const data = await fetchDepartamentos();
+      setDepartamentos(data);
+    } catch (error) {
+      setDepartamentos([]);
+    }
+  };
+
   useEffect(() => {
     carregar();
+    carregarDepartamentos();
   }, []);
 
   const handleSort = (key) => {
@@ -83,7 +96,15 @@ const AdminUsers = () => {
   }, [usuarios, filters, sort]);
 
   const abrirNovo = () => {
-    setForm({ id: null, email: '', first_name: '', last_name: '', is_staff: false, is_active: true });
+    setForm({
+      id: null,
+      email: '',
+      first_name: '',
+      last_name: '',
+      is_staff: false,
+      is_active: true,
+      departamento_id: '',
+    });
     setView('form');
   };
 
@@ -95,6 +116,7 @@ const AdminUsers = () => {
       last_name: usuario.last_name || '',
       is_staff: !!usuario.is_staff,
       is_active: usuario.is_active !== false,
+      departamento_id: usuario.departamento_id ?? '',
     });
     const data = await fetchUsuarioTreinamentos(usuario.id);
     setTreinamentos(data);
@@ -112,6 +134,7 @@ const AdminUsers = () => {
       last_name: form.last_name,
       is_staff: form.is_staff,
       is_active: form.is_active,
+      departamento_id: form.departamento_id ? Number(form.departamento_id) : null,
     };
 
     if (form.id) {
@@ -307,6 +330,20 @@ const AdminUsers = () => {
                 >
                   <option value="Colaborador">Colaborador</option>
                   <option value="Admin">Admin</option>
+                </select>
+              </label>
+              <label>
+                Departamento
+                <select
+                  value={form.departamento_id}
+                  onChange={(event) => setForm({ ...form, departamento_id: event.target.value })}
+                >
+                  <option value="">Selecione</option>
+                  {departamentos.map((dep) => (
+                    <option key={dep.id} value={dep.id}>
+                      {dep.nome}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label>

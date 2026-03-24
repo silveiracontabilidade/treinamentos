@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Pencil, Trash2, Save, ArrowLeft } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save, ArrowLeft, List } from 'lucide-react';
 import {
   fetchFormulariosModelo,
   createFormularioModelo,
@@ -45,6 +45,7 @@ const AdminFormularios = () => {
     { id: null, texto: '', correta: true },
     { id: null, texto: '', correta: false },
   ]);
+  const [showPerguntasModal, setShowPerguntasModal] = useState(false);
 
   const confirmarExclusao = (mensagem) => window.confirm(mensagem);
 
@@ -70,6 +71,11 @@ const AdminFormularios = () => {
     setModeloModalMode('create');
     setFormModelo({ id: null, titulo: '', nota_minima: 70, ativo: true });
     setShowModeloModal(true);
+  };
+
+  const abrirPerguntasModelo = (modelo) => {
+    setModeloSelecionadoId(modelo.id);
+    setShowPerguntasModal(true);
   };
 
   const abrirEditarModelo = (modelo) => {
@@ -293,7 +299,6 @@ const AdminFormularios = () => {
               {modelos.map((modelo) => (
                 <tr
                   key={modelo.id}
-                  onClick={() => setModeloSelecionadoId(modelo.id)}
                   style={{
                     background:
                       modeloSelecionadoId === modelo.id ? 'rgba(18, 38, 63, 0.08)' : 'transparent',
@@ -316,6 +321,18 @@ const AdminFormularios = () => {
                         aria-label="Editar"
                       >
                         <Pencil size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button icon-button--ghost"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          abrirPerguntasModelo(modelo);
+                        }}
+                        title="Perguntas"
+                        aria-label="Perguntas"
+                      >
+                        <List size={16} />
                       </button>
                       <button
                         type="button"
@@ -343,74 +360,6 @@ const AdminFormularios = () => {
             </tbody>
           </table>
         </div>
-
-        <div className="section-title">Perguntas do formulario</div>
-        {!modeloSelecionado && (
-          <div style={{ color: 'var(--text-muted)' }}>Selecione um modelo para gerenciar perguntas.</div>
-        )}
-        {modeloSelecionado && (
-          <div className="eficacia-admin-panel">
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div style={{ color: 'var(--text-muted)' }}>
-                {(modeloSelecionado.perguntas || []).length} pergunta(s)
-              </div>
-              <button
-                type="button"
-                className="icon-button icon-button--primary"
-                onClick={abrirNovaPergunta}
-                title="Nova pergunta"
-                aria-label="Nova pergunta"
-              >
-                <Plus size={18} />
-              </button>
-            </div>
-            <div className="eficacia-perguntas-list">
-              {(modeloSelecionado.perguntas || []).map((pergunta) => (
-                <div key={pergunta.id} className="eficacia-pergunta-card">
-                  <div>
-                    <strong>{pergunta.enunciado}</strong>
-                    <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>
-                      {tipoPerguntaLabel(pergunta.tipo)} •{' '}
-                      {pergunta.obrigatoria ? 'Obrigatoria' : 'Opcional'}
-                    </div>
-                    {isMultiplaEscolha(pergunta.tipo) && (
-                      <ul style={{ margin: '8px 0 0 16px', color: 'var(--text-muted)' }}>
-                        {(pergunta.alternativas || []).map((alt) => (
-                          <li key={alt.id}>
-                            {alt.texto} {alt.correta ? '(correta)' : ''}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <button
-                      type="button"
-                      className="icon-button icon-button--ghost"
-                      onClick={() => abrirEditarPergunta(pergunta)}
-                      title="Editar"
-                      aria-label="Editar"
-                    >
-                      <Pencil size={18} />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-button icon-button--danger"
-                      onClick={() => excluirPergunta(pergunta.id)}
-                      title="Excluir"
-                      aria-label="Excluir"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {(modeloSelecionado.perguntas || []).length === 0 && (
-                <div style={{ color: 'var(--text-muted)' }}>Nenhuma pergunta cadastrada.</div>
-              )}
-            </div>
-          </div>
-        )}
 
         {showModeloModal && (
           <div className="modal-overlay">
@@ -477,6 +426,99 @@ const AdminFormularios = () => {
                   type="button"
                   className="action-button action-button--ghost"
                   onClick={() => setShowModeloModal(false)}
+                  title="Voltar"
+                  aria-label="Voltar"
+                >
+                  <ArrowLeft size={16} />
+                  Voltar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showPerguntasModal && (
+          <div className="modal-overlay">
+            <div className="modal modal--wide">
+              <div className="modal-header">
+                <div>
+                  <h2>Perguntas do formulario</h2>
+                  <div className="modal-sub">{modeloSelecionado?.titulo || 'Formulario selecionado'}</div>
+                </div>
+              </div>
+              {!modeloSelecionado && (
+                <div style={{ color: 'var(--text-muted)' }}>
+                  Selecione um modelo para gerenciar perguntas.
+                </div>
+              )}
+              {modeloSelecionado && (
+                <div className="eficacia-admin-panel" style={{ padding: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <div style={{ color: 'var(--text-muted)' }}>
+                      {(modeloSelecionado.perguntas || []).length} pergunta(s)
+                    </div>
+                    <button
+                      type="button"
+                      className="icon-button icon-button--primary"
+                      onClick={abrirNovaPergunta}
+                      title="Nova pergunta"
+                      aria-label="Nova pergunta"
+                    >
+                      <Plus size={18} />
+                    </button>
+                  </div>
+                  <div className="eficacia-perguntas-list">
+                    {(modeloSelecionado.perguntas || []).map((pergunta) => (
+                      <div key={pergunta.id} className="eficacia-pergunta-card">
+                        <div>
+                          <strong>{pergunta.enunciado}</strong>
+                          <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>
+                            {tipoPerguntaLabel(pergunta.tipo)} •{' '}
+                            {pergunta.obrigatoria ? 'Obrigatoria' : 'Opcional'}
+                          </div>
+                          {isMultiplaEscolha(pergunta.tipo) && (
+                            <ul style={{ margin: '8px 0 0 16px', color: 'var(--text-muted)' }}>
+                              {(pergunta.alternativas || []).map((alt) => (
+                                <li key={alt.id}>
+                                  {alt.texto} {alt.correta ? '(correta)' : ''}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          <button
+                            type="button"
+                            className="icon-button icon-button--ghost"
+                            onClick={() => abrirEditarPergunta(pergunta)}
+                            title="Editar"
+                            aria-label="Editar"
+                          >
+                            <Pencil size={18} />
+                          </button>
+                          <button
+                            type="button"
+                            className="icon-button icon-button--danger"
+                            onClick={() => excluirPergunta(pergunta.id)}
+                            title="Excluir"
+                            aria-label="Excluir"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {(modeloSelecionado.perguntas || []).length === 0 && (
+                      <div style={{ color: 'var(--text-muted)' }}>Nenhuma pergunta cadastrada.</div>
+                    )}
+                  </div>
+                </div>
+              )}
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="action-button action-button--ghost"
+                  onClick={() => setShowPerguntasModal(false)}
                   title="Voltar"
                   aria-label="Voltar"
                 >

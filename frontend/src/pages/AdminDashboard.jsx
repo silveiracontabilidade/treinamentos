@@ -125,6 +125,7 @@ const AdminDashboard = () => {
     iframe: 'Cole o iframe completo ou apenas o src.',
   };
   const videoOrigemAtual = formModulo.video_origem || inferVideoOrigem(formModulo.video_iframe);
+  const eficaciaAtiva = !!eficaciaForm.ativo;
 
   const carregarTudo = async () => {
     try {
@@ -912,11 +913,25 @@ const AdminDashboard = () => {
                   </div>
                 </div>
 
+                <div className="eficacia-settings-grid">
+                  <label className="eficacia-toggle">
+                    <input
+                      type="checkbox"
+                      checked={!!eficaciaForm.ativo}
+                      onChange={(event) =>
+                        setEficaciaForm({ ...eficaciaForm, ativo: event.target.checked })
+                      }
+                    />
+                    <span>Ativo</span>
+                  </label>
+                </div>
+
                 <div className="eficacia-admin-row">
                   <label className="eficacia-field">
                     <span>Modelo de formulario</span>
                     <select
                       value={modeloSelecionadoId}
+                      disabled={!eficaciaAtiva}
                       onChange={(event) => setModeloSelecionadoId(event.target.value)}
                     >
                       <option value="">Selecione um modelo</option>
@@ -932,7 +947,7 @@ const AdminDashboard = () => {
                       type="button"
                       className="action-button action-button--ghost"
                       onClick={aplicarModeloSelecionado}
-                      disabled={!modeloSelecionadoId || aplicandoModelo}
+                      disabled={!eficaciaAtiva || !modeloSelecionadoId || aplicandoModelo}
                       title="Aplicar modelo"
                       aria-label="Aplicar modelo"
                     >
@@ -950,6 +965,7 @@ const AdminDashboard = () => {
                       type="button"
                       className="action-button action-button--ghost"
                       onClick={criarNovaVersaoFormulario}
+                      disabled={!eficaciaAtiva}
                       title="Criar nova versao"
                       aria-label="Criar nova versao"
                     >
@@ -964,6 +980,7 @@ const AdminDashboard = () => {
                     <input
                       type="text"
                       value={eficaciaForm.titulo}
+                      disabled={!eficaciaAtiva}
                       onChange={(event) =>
                         setEficaciaForm({ ...eficaciaForm, titulo: event.target.value })
                       }
@@ -975,7 +992,11 @@ const AdminDashboard = () => {
                       type="number"
                       min="0"
                       max="100"
-                      disabled={eficaciaForm.nota_minima === '' || eficaciaForm.nota_minima === null}
+                      disabled={
+                        !eficaciaAtiva ||
+                        eficaciaForm.nota_minima === '' ||
+                        eficaciaForm.nota_minima === null
+                      }
                       value={eficaciaForm.nota_minima}
                       onChange={(event) =>
                         setEficaciaForm({ ...eficaciaForm, nota_minima: event.target.value })
@@ -985,6 +1006,7 @@ const AdminDashboard = () => {
                   <label className="eficacia-toggle">
                     <input
                       type="checkbox"
+                      disabled={!eficaciaAtiva}
                       checked={eficaciaForm.nota_minima === '' || eficaciaForm.nota_minima === null}
                       onChange={(event) =>
                         setEficaciaForm({
@@ -994,16 +1016,6 @@ const AdminDashboard = () => {
                       }
                     />
                     <span>Sem nota minima</span>
-                  </label>
-                  <label className="eficacia-toggle">
-                    <input
-                      type="checkbox"
-                      checked={!!eficaciaForm.ativo}
-                      onChange={(event) =>
-                        setEficaciaForm({ ...eficaciaForm, ativo: event.target.checked })
-                      }
-                    />
-                    <span>Ativo</span>
                   </label>
                 </div>
                 {eficaciaErro && <div style={{ color: '#b91c1c', fontWeight: 600 }}>{eficaciaErro}</div>}
@@ -1018,7 +1030,7 @@ const AdminDashboard = () => {
                         type="button"
                         className="action-button action-button--primary"
                         onClick={abrirNovaPergunta}
-                        disabled={eficaciaTemTentativas}
+                        disabled={!eficaciaAtiva || eficaciaTemTentativas}
                         title="Nova pergunta"
                         aria-label="Nova pergunta"
                       >
@@ -1050,7 +1062,7 @@ const AdminDashboard = () => {
                               type="button"
                               className="icon-button icon-button--ghost"
                               onClick={() => abrirEditarPergunta(pergunta)}
-                              disabled={eficaciaTemTentativas}
+                              disabled={!eficaciaAtiva || eficaciaTemTentativas}
                               title="Editar"
                               aria-label="Editar"
                             >
@@ -1060,7 +1072,7 @@ const AdminDashboard = () => {
                               type="button"
                               className="icon-button icon-button--danger"
                               onClick={() => excluirPergunta(pergunta.id)}
-                              disabled={eficaciaTemTentativas}
+                              disabled={!eficaciaAtiva || eficaciaTemTentativas}
                               title="Excluir"
                               aria-label="Excluir"
                             >

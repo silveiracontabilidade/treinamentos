@@ -25,7 +25,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error?.response?.status;
-    if (status === 401 || status === 403) {
+    if (status === 401) {
       const isAdminRoute = window.location.pathname.startsWith('/admin');
       if (isAdminRoute) {
         clearAdminToken();
@@ -130,7 +130,9 @@ export const deleteTreinamento = async (id) => {
 };
 
 export const fetchEficaciaQuestionarioAdmin = async (treinamentoId) => {
-  const { data } = await api.get(`/api/eficacia-questionarios/?treinamento=${treinamentoId}`);
+  const { data } = await api.get(
+    `/api/eficacia-questionarios/?treinamento=${treinamentoId}&include_inativos=1`
+  );
   return data.results || data;
 };
 

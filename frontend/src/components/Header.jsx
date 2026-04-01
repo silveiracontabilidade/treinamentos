@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { LogOut, User } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import logoImg from '../assets/images/logo.png';
 
 const Header = ({ usuarioEmail, meusTreinamentos, perfil, onAdminLogout, onUserLogout }) => {
   const [menuAberto, setMenuAberto] = useState(null);
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
 
   const toggleMenu = (id) => {
     setMenuAberto(menuAberto === id ? null : id);
@@ -23,7 +25,7 @@ const Header = ({ usuarioEmail, meusTreinamentos, perfil, onAdminLogout, onUserL
 
         <nav className="header__nav">
           <ul>
-            {perfil === 'Admin' && (
+            {perfil === 'Admin' && isAdminRoute && (
               <li
                 style={{ position: 'relative' }}
                 onMouseEnter={() => toggleMenu('cadastros')}
@@ -43,6 +45,13 @@ const Header = ({ usuarioEmail, meusTreinamentos, perfil, onAdminLogout, onUserL
                     </li>
                   </ul>
                 )}
+              </li>
+            )}
+            {perfil === 'Admin' && isAdminRoute && (
+              <li>
+                <NavLink className="menu__title" to="/admin/relatorio">
+                  Relatorio
+                </NavLink>
               </li>
             )}
             <li

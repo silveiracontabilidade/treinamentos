@@ -115,6 +115,13 @@ export const responderEficacia = async (treinamentoId, respostas) => {
   return data;
 };
 
+export const concluirFormularioExterno = async (treinamentoId) => {
+  const { data } = await api.post(
+    `/api/treinamentos/${treinamentoId}/formulario-externo/concluir/`
+  );
+  return data;
+};
+
 export const createTreinamento = async (payload) => {
   const { data } = await api.post('/api/treinamentos/', payload);
   return data;
@@ -256,6 +263,19 @@ export const resetUsuarioSenha = async (id) => {
 export const fetchUsuarioTreinamentos = async (id) => {
   const { data } = await api.get(`/api/usuarios/${id}/treinamentos/`);
   return data;
+};
+
+export const fetchRelatorioTreinamentos = async (params) => {
+  const { data } = await api.get('/api/relatorios/treinamentos/', { params });
+  return data;
+};
+
+export const exportRelatorioTreinamentosXlsx = async (params) => {
+  const response = await api.get('/api/relatorios/treinamentos/xlsx/', {
+    params,
+    responseType: 'blob',
+  });
+  return response;
 };
 
 export default api;

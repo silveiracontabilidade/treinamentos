@@ -13,6 +13,8 @@ from .views import (
     EficaciaPerguntaViewSet,
     EficaciaAlternativaViewSet,
     FormularioModeloViewSet,
+    RelatorioTreinamentosView,
+    RelatorioTreinamentosXlsxView,
     EmailLoginView,
     IniciarTreinamentoView,
     ConcluirModuloView,
@@ -40,4 +42,10 @@ urlpatterns = [
     path("public/concluir-modulo/", ConcluirModuloView.as_view(), name="concluir_modulo"),
     path("public/catalogo/", PublicCatalogoView.as_view(), name="catalogo_publico"),
     path("public/me/progresso/", MeProgressoView.as_view(), name="me_progresso"),
+    path("relatorios/treinamentos/", RelatorioTreinamentosView.as_view(), name="relatorio_treinamentos"),
+    path(
+        "relatorios/treinamentos/xlsx/",
+        RelatorioTreinamentosXlsxView.as_view(),
+        name="relatorio_treinamentos_xlsx",
+    ),
 ]

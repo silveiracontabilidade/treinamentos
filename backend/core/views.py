@@ -1,5 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from datetime import datetime
+from django.http import HttpResponse
 from rest_framework import viewsets, permissions, status, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -38,6 +40,50 @@ from .serializers import (
     ResponderEficaciaSerializer,
 )
 
+try:
+    from openpyxl import Workbook
+except Exception:  # pragma: no cover - optional dependency at runtime
+    Workbook = None
+
+
+STATUS_LABELS = {
+    "nao_iniciado": "Nao iniciado",
+    "em_andamento": "Em andamento",
+    "aguardando_eficacia": "Aguardando eficacia",
+    "concluido": "Concluido",
+}
+
+
+def _filtrar_relatorio_treinamentos(request):
+    qs = TreinamentoMatricula.objects.select_related(
+        "treinamento",
+        "colaborador",
+        "colaborador__departamento",
+    )
+
+    nome_treinamento = (request.query_params.get("treinamento") or "").strip()
+    treinamento_id = (request.query_params.get("treinamento_id") or "").strip()
+    status_param = (request.query_params.get("status") or "").strip()
+    data_conclusao = (request.query_params.get("concluido_em") or "").strip()
+    departamento = (request.query_params.get("departamento") or "").strip()
+
+    if treinamento_id:
+        qs = qs.filter(treinamento_id=treinamento_id)
+    elif nome_treinamento:
+        qs = qs.filter(treinamento__nome__icontains=nome_treinamento)
+    if status_param:
+        qs = qs.filter(status=status_param)
+    if data_conclusao:
+        try:
+            data = datetime.strptime(data_conclusao, "%Y-%m-%d").date()
+            qs = qs.filter(concluido_em__date=data)
+        except ValueError:
+            pass
+    if departamento and departamento.lower() not in ["todos", "all"]:
+        qs = qs.filter(colaborador__departamento_id=departamento)
+
+    return qs.order_by("treinamento__nome", "colaborador__nome", "id")
+
 
 class DepartamentoViewSet(viewsets.ModelViewSet):
     queryset = Departamento.objects.all()
@@ -57,6 +103,8 @@ class TreinamentoViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"])
     def eficacia(self, request, pk=None):
         treinamento = self.get_object()
+        if getattr(treinamento, "formulario_tipo", "integrado") == "microsoft_form":
+            return Response({"disponivel": False, "motivo": "formulario_externo"})
         questionario = (
             EficaciaQuestionario.objects.prefetch_related("perguntas__alternativas")
             .filter(treinamento=treinamento, ativo=True)
@@ -95,6 +143,11 @@ class TreinamentoViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="eficacia/responder")
     def responder_eficacia(self, request, pk=None):
         treinamento = self.get_object()
+        if getattr(treinamento, "formulario_tipo", "integrado") == "microsoft_form":
+            return Response(
+                {"detail": "Treinamento usa formulario externo."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         questionario = (
             EficaciaQuestionario.objects.prefetch_related("perguntas__alternativas")
             .filter(treinamento=treinamento, ativo=True)
@@ -237,6 +290,45 @@ class TreinamentoViewSet(viewsets.ModelViewSet):
             }
         )
 
+    @action(detail=True, methods=["post"], url_path="formulario-externo/concluir")
+    def concluir_formulario_externo(self, request, pk=None):
+        treinamento = self.get_object()
+        if getattr(treinamento, "formulario_tipo", "integrado") != "microsoft_form":
+            return Response(
+                {"detail": "Treinamento nao usa formulario externo."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        email = request.user.email.lower() if request.user.email else request.user.username.lower()
+        colaborador = Colaborador.objects.filter(email=email).first()
+        if not colaborador:
+            colaborador = Colaborador.objects.create(
+                email=email,
+                nome=email.split("@", maxsplit=1)[0],
+                administrador=False,
+            )
+
+        matricula, _ = TreinamentoMatricula.objects.get_or_create(
+            colaborador=colaborador,
+            treinamento=treinamento,
+        )
+
+        if matricula.percentual_conclusao < 100:
+            return Response({"detail": "Treinamento nao concluido."}, status=status.HTTP_403_FORBIDDEN)
+
+        matricula.status = "concluido"
+        if not matricula.concluido_em:
+            matricula.concluido_em = timezone.now()
+        if not matricula.iniciado_em:
+            matricula.iniciado_em = timezone.now()
+        if matricula.percentual_conclusao < 100:
+            matricula.percentual_conclusao = 100
+        matricula.save(
+            update_fields=["status", "concluido_em", "iniciado_em", "percentual_conclusao"]
+        )
+
+        return Response({"matricula": TreinamentoMatriculaSerializer(matricula).data})
+
 
 class ModuloViewSet(viewsets.ModelViewSet):
     queryset = Modulo.objects.select_related("treinamento")
@@ -278,25 +370,75 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     def treinamentos(self, request, pk=None):
         user = self.get_object()
         email = user.email or user.username
-        colaborador = Colaborador.objects.filter(email=email).first()
+        colaborador = Colaborador.objects.filter(email=email).select_related("departamento").first()
         if not colaborador:
-            return Response([])
+            colaborador = Colaborador.objects.create(
+                email=email,
+                nome=email.split("@", maxsplit=1)[0],
+                administrador=user.is_staff,
+            )
 
         matriculas = (
             TreinamentoMatricula.objects.select_related("treinamento")
             .filter(colaborador=colaborador)
             .order_by("-iniciado_em")
         )
-        payload = [
-            {
-                "id": matricula.treinamento.id,
-                "nome": matricula.treinamento.nome,
-                "iniciado_em": matricula.iniciado_em,
-                "concluido_em": matricula.concluido_em,
-                "status": matricula.status,
-            }
-            for matricula in matriculas
-        ]
+        matriculas_map = {m.treinamento_id: m for m in matriculas}
+
+        departamento_ids = []
+        if colaborador.departamento_id:
+            departamento_ids.append(colaborador.departamento_id)
+        departamento_geral = Departamento.objects.filter(nome__iexact="geral").first()
+        if departamento_geral:
+            departamento_ids.append(departamento_geral.id)
+
+        obrigatorios = (
+            Treinamento.objects.prefetch_related("departamentos")
+            .filter(departamentos__in=departamento_ids)
+            .distinct()
+        )
+        obrigatorios_ids = {tr.id for tr in obrigatorios}
+
+        payload = []
+        for treinamento in obrigatorios:
+            matricula = matriculas_map.get(treinamento.id)
+            if matricula:
+                payload.append(
+                    {
+                        "id": treinamento.id,
+                        "nome": treinamento.nome,
+                        "iniciado_em": matricula.iniciado_em,
+                        "concluido_em": matricula.concluido_em,
+                        "status": matricula.status,
+                        "obrigatorio": True,
+                    }
+                )
+            else:
+                payload.append(
+                    {
+                        "id": treinamento.id,
+                        "nome": treinamento.nome,
+                        "iniciado_em": None,
+                        "concluido_em": None,
+                        "status": "nao_iniciado",
+                        "obrigatorio": True,
+                    }
+                )
+
+        for matricula in matriculas:
+            if matricula.treinamento_id in obrigatorios_ids:
+                continue
+            payload.append(
+                {
+                    "id": matricula.treinamento.id,
+                    "nome": matricula.treinamento.nome,
+                    "iniciado_em": matricula.iniciado_em,
+                    "concluido_em": matricula.concluido_em,
+                    "status": matricula.status,
+                    "obrigatorio": False,
+                }
+            )
+
         serializer = UsuarioTreinamentoSerializer(payload, many=True)
         return Response(serializer.data)
 
@@ -320,6 +462,8 @@ class EficaciaQuestionarioViewSet(viewsets.ModelViewSet):
 
     def _atualizar_status_matriculas(self, questionario):
         if not questionario.treinamento:
+            return
+        if getattr(questionario.treinamento, "formulario_tipo", "integrado") == "microsoft_form":
             return
         if questionario.ativo:
             aprovados = EficaciaTentativa.objects.filter(
@@ -495,6 +639,70 @@ class FormularioModeloViewSet(viewsets.ModelViewSet):
         serializer.save(treinamento=None)
 
 
+class RelatorioTreinamentosView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        qs = _filtrar_relatorio_treinamentos(request)
+
+        payload = [
+            {
+                "treinamento": matricula.treinamento.nome,
+                "colaborador": matricula.colaborador.nome,
+                "departamento": matricula.colaborador.departamento.nome
+                if matricula.colaborador.departamento
+                else None,
+                "status": matricula.status,
+                "concluido_em": matricula.concluido_em,
+            }
+            for matricula in qs
+        ]
+        return Response(payload)
+
+
+class RelatorioTreinamentosXlsxView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        if Workbook is None:
+            return Response(
+                {"detail": "Dependencia openpyxl nao instalada."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        qs = _filtrar_relatorio_treinamentos(request)
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Relatorio"
+        ws.append(["Treinamento", "Colaborador", "Departamento", "Status", "Data conclusao"])
+
+        for matricula in qs:
+            concluido_em = matricula.concluido_em
+            data_fmt = concluido_em.strftime("%d/%m/%Y") if concluido_em else ""
+            ws.append(
+                [
+                    matricula.treinamento.nome,
+                    matricula.colaborador.nome,
+                    matricula.colaborador.departamento.nome
+                    if matricula.colaborador.departamento
+                    else "",
+                    STATUS_LABELS.get(matricula.status, matricula.status),
+                    data_fmt,
+                ]
+            )
+
+        for col in ["A", "B", "C", "D", "E"]:
+            ws.column_dimensions[col].width = 28
+
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = 'attachment; filename="relatorio_treinamentos.xlsx"'
+        wb.save(response)
+        return response
+
+
 class EmailLoginView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -566,25 +774,30 @@ class ConcluirModuloView(APIView):
         percentual = int((concluidos / total) * 100) if total else 0
 
         if percentual == 100:
-            questionario = EficaciaQuestionario.objects.filter(
-                treinamento=modulo.treinamento,
-                ativo=True,
-            ).first()
-            if questionario:
-                aprovado = EficaciaTentativa.objects.filter(
-                    questionario=questionario,
-                    colaborador=colaborador,
-                    aprovado=True,
-                ).exists()
-                if aprovado:
-                    matricula.status = "concluido"
-                    matricula.concluido_em = matricula.concluido_em or timezone.now()
-                else:
+            if getattr(modulo.treinamento, "formulario_tipo", "integrado") == "microsoft_form":
+                if matricula.status != "concluido":
                     matricula.status = "aguardando_eficacia"
                     matricula.concluido_em = None
             else:
-                matricula.status = "concluido"
-                matricula.concluido_em = timezone.now()
+                questionario = EficaciaQuestionario.objects.filter(
+                    treinamento=modulo.treinamento,
+                    ativo=True,
+                ).first()
+                if questionario:
+                    aprovado = EficaciaTentativa.objects.filter(
+                        questionario=questionario,
+                        colaborador=colaborador,
+                        aprovado=True,
+                    ).exists()
+                    if aprovado:
+                        matricula.status = "concluido"
+                        matricula.concluido_em = matricula.concluido_em or timezone.now()
+                    else:
+                        matricula.status = "aguardando_eficacia"
+                        matricula.concluido_em = None
+                else:
+                    matricula.status = "concluido"
+                    matricula.concluido_em = timezone.now()
         elif percentual > 0:
             matricula.status = "em_andamento"
         else:

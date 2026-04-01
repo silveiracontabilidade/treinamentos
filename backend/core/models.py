@@ -17,6 +17,15 @@ class Treinamento(models.Model):
     responsavel = models.CharField(max_length=255)
     ultima_atualizacao = models.DateField(auto_now=True)
     departamentos = models.ManyToManyField(Departamento, related_name="treinamentos", blank=True)
+    formulario_tipo = models.CharField(
+        max_length=20,
+        choices=[
+            ("integrado", "Formulario integrado"),
+            ("microsoft_form", "Microsoft Form"),
+        ],
+        default="integrado",
+    )
+    formulario_link = models.URLField(blank=True, default="")
 
     class Meta:
         db_table = "TREINAMENTOS"

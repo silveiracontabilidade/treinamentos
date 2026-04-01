@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { fetchEficaciaQuestionario, responderEficacia } from '../services/api.js';
+import {
+  fetchEficaciaQuestionario,
+  responderEficacia,
+  concluirFormularioExterno,
+} from '../services/api.js';
 import { isMultiplaEscolha } from '../utils/eficacia.js';
 
 const formatDate = (dateStr) => {
@@ -211,12 +215,15 @@ const TrainingExplorer = ({
     return [...perguntas].sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
   }, [eficaciaData]);
 
-  const formularioEficaciaAtivo = treinamentoSelecionado?.eficacia_ativa !== false;
-  const esconderFormularioEficacia =
-    !formularioEficaciaAtivo ||
-    (progressoAtual.percentual === 100 &&
-      eficaciaData?.disponivel === false &&
-      eficaciaData?.motivo === 'sem_questionario');
+  const formularioTipo = treinamentoSelecionado?.formulario_tipo || 'integrado';
+  const formularioExterno = formularioTipo === 'microsoft_form';
+  const formularioEficaciaAtivo = formularioExterno ? true : treinamentoSelecionado?.eficacia_ativa !== false;
+  const esconderFormularioEficacia = formularioExterno
+    ? false
+    : !formularioEficaciaAtivo ||
+      (progressoAtual.percentual === 100 &&
+        eficaciaData?.disponivel === false &&
+        eficaciaData?.motivo === 'sem_questionario');
 
   const calcularPercentual = (treinamento) => {
     const modulos = treinamento?.modulos || [];
@@ -275,18 +282,28 @@ const TrainingExplorer = ({
       if (!treinamentoSelecionado) {
       setEficaciaData(null);
       setEficaciaResultado(null);
+      setEficaciaCarregando(false);
       return;
+      }
+      if (treinamentoSelecionado.formulario_tipo === 'microsoft_form') {
+        setEficaciaData(null);
+        setEficaciaResultado(null);
+        setEficaciaErro('');
+        setEficaciaCarregando(false);
+        return;
       }
       if (treinamentoSelecionado.eficacia_ativa === false) {
         setEficaciaData(null);
         setEficaciaResultado(null);
         setEficaciaErro('');
+        setEficaciaCarregando(false);
         return;
       }
       if (progressoAtual.percentual < 100) {
         setEficaciaData(null);
         setEficaciaResultado(null);
         setEficaciaErro('');
+        setEficaciaCarregando(false);
         return;
       }
       setEficaciaCarregando(true);
@@ -315,6 +332,25 @@ const TrainingExplorer = ({
     setEficaciaRespostas({});
     setEficaciaErroModal('');
     setEficaciaModalAberto(true);
+  };
+
+  const abrirFormularioExterno = async () => {
+    if (treinamentoConcluido) return;
+    const link = (treinamentoSelecionado?.formulario_link || '').trim();
+    if (!link) {
+      setEficaciaErro('Link do Microsoft Form nao configurado.');
+      return;
+    }
+    setEficaciaErro('');
+    window.open(link, '_blank', 'noopener');
+    try {
+      const data = await concluirFormularioExterno(treinamentoSelecionado.id);
+      if (data?.matricula && onEficaciaRespondida) {
+        onEficaciaRespondida(data.matricula);
+      }
+    } catch (error) {
+      setEficaciaErro('Nao foi possivel concluir o formulario.');
+    }
   };
 
   const fecharFormularioEficacia = () => {
@@ -533,56 +569,90 @@ const TrainingExplorer = ({
                           )}
                           {progressoAtual.percentual === 100 && (
                             <>
-                              {eficaciaCarregando && <div>Carregando formulario...</div>}
-                              {!eficaciaCarregando && eficaciaData?.disponivel === false && (
-                                <div style={{ color: 'var(--text-muted)' }}>
-                                  Este treinamento nao possui formulario de eficacia.
-                                </div>
-                              )}
-                              {!eficaciaCarregando && eficaciaData?.disponivel && (
+                              {formularioExterno ? (
                                 <>
-                                  <div className="eficacia-meta">
-                                    {eficaciaData.questionario.nota_minima != null ? (
-                                      <span>Nota minima: {eficaciaData.questionario.nota_minima}%</span>
+                                  {!(treinamentoSelecionado?.formulario_link || '').trim() && (
+                                    <div style={{ color: 'var(--text-muted)' }}>
+                                      Link do Microsoft Form nao configurado.
+                                    </div>
+                                  )}
+                                  {(treinamentoSelecionado?.formulario_link || '').trim() &&
+                                    (treinamentoConcluido ? (
+                                      <div style={{ color: 'var(--text-muted)' }}>
+                                        Formulario ja concluido.
+                                      </div>
                                     ) : (
-                                      <span>Formulario informativo</span>
-                                    )}
-                                {eficaciaResultado && eficaciaData.questionario.nota_minima != null && (
-                                  <span>
-                                    Ultima nota: {eficaciaResultado.percentual}% (
-                                    {eficaciaData.questionario.nota_minima == null
-                                      ? 'Concluido'
-                                      : eficaciaResultado.aprovado
-                                            ? 'Aprovado'
-                                            : 'Reprovado'}
-                                        )
-                                      </span>
-                                    )}
-                                  </div>
-                                  {perguntasEficacia.length === 0 ? (
+                                      <button
+                                        type="button"
+                                        onClick={abrirFormularioExterno}
+                                        style={{
+                                          padding: '8px 16px',
+                                          borderRadius: 999,
+                                          border: 'none',
+                                          background: 'var(--brand-navy)',
+                                          color: '#fff',
+                                          fontWeight: 700,
+                                          cursor: 'pointer',
+                                        }}
+                                      >
+                                        Responder formulario
+                                      </button>
+                                    ))}
+                                </>
+                              ) : (
+                                <>
+                                  {eficaciaCarregando && <div>Carregando formulario...</div>}
+                                  {!eficaciaCarregando && eficaciaData?.disponivel === false && (
                                     <div style={{ color: 'var(--text-muted)' }}>
-                                      Formulario sem perguntas cadastradas.
+                                      Este treinamento nao possui formulario de eficacia.
                                     </div>
-                                  ) : treinamentoConcluido ? (
-                                    <div style={{ color: 'var(--text-muted)' }}>
-                                      Formulario ja concluido.
-                                    </div>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={abrirFormularioEficacia}
-                                      style={{
-                                        padding: '8px 16px',
-                                        borderRadius: 999,
-                                        border: 'none',
-                                        background: 'var(--brand-navy)',
-                                        color: '#fff',
-                                        fontWeight: 700,
-                                        cursor: 'pointer',
-                                      }}
-                                    >
-                                      Responder formulario
-                                    </button>
+                                  )}
+                                  {!eficaciaCarregando && eficaciaData?.disponivel && (
+                                    <>
+                                      <div className="eficacia-meta">
+                                        {eficaciaData.questionario.nota_minima != null ? (
+                                          <span>Nota minima: {eficaciaData.questionario.nota_minima}%</span>
+                                        ) : (
+                                          <span>Formulario informativo</span>
+                                        )}
+                                    {eficaciaResultado && eficaciaData.questionario.nota_minima != null && (
+                                      <span>
+                                        Ultima nota: {eficaciaResultado.percentual}% (
+                                        {eficaciaData.questionario.nota_minima == null
+                                          ? 'Concluido'
+                                          : eficaciaResultado.aprovado
+                                                ? 'Aprovado'
+                                                : 'Reprovado'}
+                                            )
+                                          </span>
+                                        )}
+                                      </div>
+                                      {perguntasEficacia.length === 0 ? (
+                                        <div style={{ color: 'var(--text-muted)' }}>
+                                          Formulario sem perguntas cadastradas.
+                                        </div>
+                                      ) : treinamentoConcluido ? (
+                                        <div style={{ color: 'var(--text-muted)' }}>
+                                          Formulario ja concluido.
+                                        </div>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={abrirFormularioEficacia}
+                                          style={{
+                                            padding: '8px 16px',
+                                            borderRadius: 999,
+                                            border: 'none',
+                                            background: 'var(--brand-navy)',
+                                            color: '#fff',
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                          }}
+                                        >
+                                          Responder formulario
+                                        </button>
+                                      )}
+                                    </>
                                   )}
                                 </>
                               )}

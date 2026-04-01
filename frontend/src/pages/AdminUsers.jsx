@@ -105,6 +105,7 @@ const AdminUsers = () => {
       is_active: true,
       departamento_id: '',
     });
+    setTreinamentos([]);
     setView('form');
   };
 
@@ -118,8 +119,12 @@ const AdminUsers = () => {
       is_active: usuario.is_active !== false,
       departamento_id: usuario.departamento_id ?? '',
     });
-    const data = await fetchUsuarioTreinamentos(usuario.id);
-    setTreinamentos(data);
+    try {
+      const data = await fetchUsuarioTreinamentos(usuario.id);
+      setTreinamentos(data);
+    } catch (error) {
+      setTreinamentos([]);
+    }
     setView('form');
   };
 
@@ -162,6 +167,14 @@ const AdminUsers = () => {
       return valueA.localeCompare(valueB) * direction;
     });
   }, [treinamentos, treinoFilters, treinoSort]);
+
+  const treinamentosObrigatorios = useMemo(() => {
+    return treinamentosFiltrados.filter((t) => t.obrigatorio);
+  }, [treinamentosFiltrados]);
+
+  const treinamentosNaoObrigatorios = useMemo(() => {
+    return treinamentosFiltrados.filter((t) => !t.obrigatorio);
+  }, [treinamentosFiltrados]);
 
   return (
     <div className="page page--admin">
@@ -401,37 +414,137 @@ const AdminUsers = () => {
                 onChange={(event) => setTreinoFilters({ ...treinoFilters, concluido_em: event.target.value })}
               />
             </div>
+            <div className="section-title" style={{ marginTop: 8 }}>
+              Treinamentos Obrigatorios
+            </div>
             <div className="table-wrapper">
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th onClick={() => setTreinoSort((prev) => ({ key: 'nome', direction: prev.direction === 'asc' ? 'desc' : 'asc' }))}>
+                    <th
+                      onClick={() =>
+                        setTreinoSort((prev) => ({
+                          key: 'nome',
+                          direction: prev.direction === 'asc' ? 'desc' : 'asc',
+                        }))
+                      }
+                    >
                       Treinamento
                     </th>
-                    <th onClick={() => setTreinoSort((prev) => ({ key: 'iniciado_em', direction: prev.direction === 'asc' ? 'desc' : 'asc' }))}>
+                    <th
+                      onClick={() =>
+                        setTreinoSort((prev) => ({
+                          key: 'iniciado_em',
+                          direction: prev.direction === 'asc' ? 'desc' : 'asc',
+                        }))
+                      }
+                    >
                       Data inicio
                     </th>
-                    <th onClick={() => setTreinoSort((prev) => ({ key: 'status', direction: prev.direction === 'asc' ? 'desc' : 'asc' }))}>
+                    <th
+                      onClick={() =>
+                        setTreinoSort((prev) => ({
+                          key: 'status',
+                          direction: prev.direction === 'asc' ? 'desc' : 'asc',
+                        }))
+                      }
+                    >
                       Status
                     </th>
-                    <th onClick={() => setTreinoSort((prev) => ({ key: 'concluido_em', direction: prev.direction === 'asc' ? 'desc' : 'asc' }))}>
+                    <th
+                      onClick={() =>
+                        setTreinoSort((prev) => ({
+                          key: 'concluido_em',
+                          direction: prev.direction === 'asc' ? 'desc' : 'asc',
+                        }))
+                      }
+                    >
                       Data termino
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {treinamentosFiltrados.map((t) => (
-                    <tr key={`${t.id}-${t.iniciado_em || ''}`}>
+                  {treinamentosObrigatorios.map((t) => (
+                    <tr key={`obrigatorio-${t.id}-${t.iniciado_em || ''}`}>
                       <td>{t.nome}</td>
                       <td>{t.iniciado_em || '-'}</td>
                       <td>{t.status}</td>
                       <td>{t.concluido_em || '-'}</td>
                     </tr>
                   ))}
-                  {treinamentosFiltrados.length === 0 && (
+                  {treinamentosObrigatorios.length === 0 && (
                     <tr>
                       <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                        Nenhum treinamento encontrado.
+                        Nenhum treinamento obrigatorio encontrado.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="section-title" style={{ marginTop: 20 }}>
+              Treinamentos Nao Obrigatorios
+            </div>
+            <div className="table-wrapper">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th
+                      onClick={() =>
+                        setTreinoSort((prev) => ({
+                          key: 'nome',
+                          direction: prev.direction === 'asc' ? 'desc' : 'asc',
+                        }))
+                      }
+                    >
+                      Treinamento
+                    </th>
+                    <th
+                      onClick={() =>
+                        setTreinoSort((prev) => ({
+                          key: 'iniciado_em',
+                          direction: prev.direction === 'asc' ? 'desc' : 'asc',
+                        }))
+                      }
+                    >
+                      Data inicio
+                    </th>
+                    <th
+                      onClick={() =>
+                        setTreinoSort((prev) => ({
+                          key: 'status',
+                          direction: prev.direction === 'asc' ? 'desc' : 'asc',
+                        }))
+                      }
+                    >
+                      Status
+                    </th>
+                    <th
+                      onClick={() =>
+                        setTreinoSort((prev) => ({
+                          key: 'concluido_em',
+                          direction: prev.direction === 'asc' ? 'desc' : 'asc',
+                        }))
+                      }
+                    >
+                      Data termino
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {treinamentosNaoObrigatorios.map((t) => (
+                    <tr key={`nao-obrigatorio-${t.id}-${t.iniciado_em || ''}`}>
+                      <td>{t.nome}</td>
+                      <td>{t.iniciado_em || '-'}</td>
+                      <td>{t.status}</td>
+                      <td>{t.concluido_em || '-'}</td>
+                    </tr>
+                  ))}
+                  {treinamentosNaoObrigatorios.length === 0 && (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                        Nenhum treinamento nao obrigatorio encontrado.
                       </td>
                     </tr>
                   )}

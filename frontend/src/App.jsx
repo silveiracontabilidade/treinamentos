@@ -9,6 +9,7 @@ import AdminLogin from './pages/AdminLogin.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import AdminUsers from './pages/AdminUsers.jsx';
 import AdminFormularios from './pages/AdminFormularios.jsx';
+import AdminRelatorio from './pages/AdminRelatorio.jsx';
 import {
   fetchCatalogo,
   iniciarTreinamento,
@@ -359,6 +360,14 @@ const AppShell = () => {
           element={
             <RequireAdmin>
               <AdminFormularios />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/relatorio"
+          element={
+            <RequireAdmin>
+              <AdminRelatorio />
             </RequireAdmin>
           }
         />

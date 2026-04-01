@@ -69,6 +69,8 @@ const AdminDashboard = () => {
     responsavel: '',
     ultima_atualizacao: '',
     departamentos: [],
+    formulario_tipo: 'integrado',
+    formulario_link: '',
   });
   const [showModuloModal, setShowModuloModal] = useState(false);
   const [moduloModalMode, setModuloModalMode] = useState('create');
@@ -126,6 +128,7 @@ const AdminDashboard = () => {
   };
   const videoOrigemAtual = formModulo.video_origem || inferVideoOrigem(formModulo.video_iframe);
   const eficaciaAtiva = !!eficaciaForm.ativo;
+  const formularioIntegrado = formTreinamento.formulario_tipo !== 'microsoft_form';
 
   const carregarTudo = async () => {
     try {
@@ -303,6 +306,8 @@ const AdminDashboard = () => {
       responsavel: '',
       ultima_atualizacao: '',
       departamentos: [],
+      formulario_tipo: 'integrado',
+      formulario_link: '',
     });
     setSelecionado(null);
     setView('detail');
@@ -318,14 +323,24 @@ const AdminDashboard = () => {
       departamentos: (treinamento.departamentos || [])
         .map((depId) => departamentos.find((dep) => dep.id === depId)?.nome)
         .filter(Boolean),
+      formulario_tipo: treinamento.formulario_tipo || 'integrado',
+      formulario_link: treinamento.formulario_link || '',
     });
     setSelecionado(treinamento);
     setView('detail');
   };
 
   const salvarTreinamento = async () => {
+    setStatus('');
     const nomesSelecionados = (formTreinamento.departamentos || []).filter(Boolean);
     if (!formTreinamento.nome || nomesSelecionados.length === 0) return;
+    if (
+      formTreinamento.formulario_tipo === 'microsoft_form' &&
+      !(formTreinamento.formulario_link || '').trim()
+    ) {
+      setStatus('Informe o link do Microsoft Form.');
+      return;
+    }
     const departamentoIds = [];
     for (const nomeRaw of nomesSelecionados) {
       const nome = nomeRaw.toString().trim();
@@ -342,6 +357,8 @@ const AdminDashboard = () => {
       nome: formTreinamento.nome,
       responsavel: formTreinamento.responsavel,
       departamentos: departamentoIds,
+      formulario_tipo: formTreinamento.formulario_tipo || 'integrado',
+      formulario_link: formTreinamento.formulario_link || '',
     };
     if (formTreinamento.id) {
       await updateTreinamento(formTreinamento.id, payload);
@@ -898,19 +915,21 @@ const AdminDashboard = () => {
                       Selecione um modelo e ajuste o conteudo para este treinamento.
                     </div>
                   </div>
-                  <div className="eficacia-actions">
-                    <button
-                      type="button"
-                      className="action-button action-button--primary"
-                      onClick={salvarQuestionarioEficacia}
-                      disabled={eficaciaQuestionario?.id && eficaciaTemTentativas}
-                      title="Salvar formulario"
-                      aria-label="Salvar formulario"
-                    >
-                      <Save size={16} />
-                      Salvar formulario
-                    </button>
-                  </div>
+                  {formularioIntegrado && (
+                    <div className="eficacia-actions">
+                      <button
+                        type="button"
+                        className="action-button action-button--primary"
+                        onClick={salvarQuestionarioEficacia}
+                        disabled={eficaciaQuestionario?.id && eficaciaTemTentativas}
+                        title="Salvar formulario"
+                        aria-label="Salvar formulario"
+                      >
+                        <Save size={16} />
+                        Salvar formulario
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="eficacia-settings-grid">
@@ -924,167 +943,203 @@ const AdminDashboard = () => {
                     />
                     <span>Ativo</span>
                   </label>
-                </div>
-
-                <div className="eficacia-admin-row">
                   <label className="eficacia-field">
-                    <span>Modelo de formulario</span>
+                    <span>Tipo de formulario</span>
                     <select
-                      value={modeloSelecionadoId}
-                      disabled={!eficaciaAtiva}
-                      onChange={(event) => setModeloSelecionadoId(event.target.value)}
-                    >
-                      <option value="">Selecione um modelo</option>
-                      {formulariosModelo.map((modelo) => (
-                        <option key={modelo.id} value={modelo.id}>
-                          {modelo.titulo}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <div className="eficacia-actions">
-                    <button
-                      type="button"
-                      className="action-button action-button--ghost"
-                      onClick={aplicarModeloSelecionado}
-                      disabled={!eficaciaAtiva || !modeloSelecionadoId || aplicandoModelo}
-                      title="Aplicar modelo"
-                      aria-label="Aplicar modelo"
-                    >
-                      <Save size={16} />
-                      Aplicar modelo
-                    </button>
-                  </div>
-                </div>
-                {eficaciaTemTentativas && (
-                  <div className="eficacia-alert">
-                    <div>
-                      Este formulario ja foi respondido. Para alterar, crie uma nova versao.
-                    </div>
-                    <button
-                      type="button"
-                      className="action-button action-button--ghost"
-                      onClick={criarNovaVersaoFormulario}
-                      disabled={!eficaciaAtiva}
-                      title="Criar nova versao"
-                      aria-label="Criar nova versao"
-                    >
-                      <Plus size={16} />
-                      Nova versao
-                    </button>
-                  </div>
-                )}
-                <div className="eficacia-settings-grid">
-                  <label className="eficacia-field eficacia-field--full">
-                    <span>Titulo</span>
-                    <input
-                      type="text"
-                      value={eficaciaForm.titulo}
-                      disabled={!eficaciaAtiva}
+                      value={formTreinamento.formulario_tipo || 'integrado'}
                       onChange={(event) =>
-                        setEficaciaForm({ ...eficaciaForm, titulo: event.target.value })
-                      }
-                    />
-                  </label>
-                  <label className="eficacia-field">
-                    <span>Nota minima (%)</span>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      disabled={
-                        !eficaciaAtiva ||
-                        eficaciaForm.nota_minima === '' ||
-                        eficaciaForm.nota_minima === null
-                      }
-                      value={eficaciaForm.nota_minima}
-                      onChange={(event) =>
-                        setEficaciaForm({ ...eficaciaForm, nota_minima: event.target.value })
-                      }
-                    />
-                  </label>
-                  <label className="eficacia-toggle">
-                    <input
-                      type="checkbox"
-                      disabled={!eficaciaAtiva}
-                      checked={eficaciaForm.nota_minima === '' || eficaciaForm.nota_minima === null}
-                      onChange={(event) =>
-                        setEficaciaForm({
-                          ...eficaciaForm,
-                          nota_minima: event.target.checked ? '' : 70,
+                        setFormTreinamento({
+                          ...formTreinamento,
+                          formulario_tipo: event.target.value,
                         })
                       }
-                    />
-                    <span>Sem nota minima</span>
+                    >
+                      <option value="microsoft_form">Microsoft Form</option>
+                      <option value="integrado">Formulario integrado</option>
+                    </select>
                   </label>
+                  {formTreinamento.formulario_tipo === 'microsoft_form' && (
+                    <label className="eficacia-field eficacia-field--full">
+                      <span>Link do Microsoft Form</span>
+                      <input
+                        type="text"
+                        value={formTreinamento.formulario_link || ''}
+                        onChange={(event) =>
+                          setFormTreinamento({
+                            ...formTreinamento,
+                            formulario_link: event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+                  )}
                 </div>
-                {eficaciaErro && <div style={{ color: '#b91c1c', fontWeight: 600 }}>{eficaciaErro}</div>}
-                {eficaciaCarregando && <div>Carregando formulario...</div>}
-                {!eficaciaCarregando && eficaciaQuestionario && (
+
+                {formularioIntegrado && (
                   <>
-                    <div className="eficacia-perguntas-header">
-                      <div className="eficacia-perguntas-count">
-                        {(eficaciaQuestionario.perguntas || []).length} pergunta(s)
+                    <div className="eficacia-admin-row">
+                      <label className="eficacia-field">
+                        <span>Modelo de formulario</span>
+                        <select
+                          value={modeloSelecionadoId}
+                          disabled={!eficaciaAtiva}
+                          onChange={(event) => setModeloSelecionadoId(event.target.value)}
+                        >
+                          <option value="">Selecione um modelo</option>
+                          {formulariosModelo.map((modelo) => (
+                            <option key={modelo.id} value={modelo.id}>
+                              {modelo.titulo}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="eficacia-actions">
+                        <button
+                          type="button"
+                          className="action-button action-button--ghost"
+                          onClick={aplicarModeloSelecionado}
+                          disabled={!eficaciaAtiva || !modeloSelecionadoId || aplicandoModelo}
+                          title="Aplicar modelo"
+                          aria-label="Aplicar modelo"
+                        >
+                          <Save size={16} />
+                          Aplicar modelo
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className="action-button action-button--primary"
-                        onClick={abrirNovaPergunta}
-                        disabled={!eficaciaAtiva || eficaciaTemTentativas}
-                        title="Nova pergunta"
-                        aria-label="Nova pergunta"
-                      >
-                        <Plus size={16} />
-                        Nova pergunta
-                      </button>
                     </div>
-                    <div className="eficacia-perguntas-list">
-                      {(eficaciaQuestionario.perguntas || []).map((pergunta) => (
-                        <div key={pergunta.id} className="eficacia-pergunta-card">
-                          <div>
-                            <strong>{pergunta.enunciado}</strong>
-                            <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>
-                              {tipoPerguntaLabel(pergunta.tipo)} •{' '}
-                              {pergunta.obrigatoria ? 'Obrigatoria' : 'Opcional'}
-                            </div>
-                            {isMultiplaEscolha(pergunta.tipo) && (
-                              <ul style={{ margin: '8px 0 0 16px', color: 'var(--text-muted)' }}>
-                                {(pergunta.alternativas || []).map((alt) => (
-                                  <li key={alt.id}>
-                                    {alt.texto} {alt.correta ? '(correta)' : ''}
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                          <div style={{ display: 'flex', gap: 10 }}>
-                            <button
-                              type="button"
-                              className="icon-button icon-button--ghost"
-                              onClick={() => abrirEditarPergunta(pergunta)}
-                              disabled={!eficaciaAtiva || eficaciaTemTentativas}
-                              title="Editar"
-                              aria-label="Editar"
-                            >
-                              <Pencil size={18} />
-                            </button>
-                            <button
-                              type="button"
-                              className="icon-button icon-button--danger"
-                              onClick={() => excluirPergunta(pergunta.id)}
-                              disabled={!eficaciaAtiva || eficaciaTemTentativas}
-                              title="Excluir"
-                              aria-label="Excluir"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
+                    {eficaciaTemTentativas && (
+                      <div className="eficacia-alert">
+                        <div>
+                          Este formulario ja foi respondido. Para alterar, crie uma nova versao.
                         </div>
-                      ))}
-                      {(eficaciaQuestionario.perguntas || []).length === 0 && (
-                        <div style={{ color: 'var(--text-muted)' }}>Nenhuma pergunta cadastrada.</div>
-                      )}
+                        <button
+                          type="button"
+                          className="action-button action-button--ghost"
+                          onClick={criarNovaVersaoFormulario}
+                          disabled={!eficaciaAtiva}
+                          title="Criar nova versao"
+                          aria-label="Criar nova versao"
+                        >
+                          <Plus size={16} />
+                          Nova versao
+                        </button>
+                      </div>
+                    )}
+                    <div className="eficacia-settings-grid">
+                      <label className="eficacia-field eficacia-field--full">
+                        <span>Titulo</span>
+                        <input
+                          type="text"
+                          value={eficaciaForm.titulo}
+                          disabled={!eficaciaAtiva}
+                          onChange={(event) =>
+                            setEficaciaForm({ ...eficaciaForm, titulo: event.target.value })
+                          }
+                        />
+                      </label>
+                      <label className="eficacia-field">
+                        <span>Nota minima (%)</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          disabled={
+                            !eficaciaAtiva ||
+                            eficaciaForm.nota_minima === '' ||
+                            eficaciaForm.nota_minima === null
+                          }
+                          value={eficaciaForm.nota_minima}
+                          onChange={(event) =>
+                            setEficaciaForm({ ...eficaciaForm, nota_minima: event.target.value })
+                          }
+                        />
+                      </label>
+                      <label className="eficacia-toggle">
+                        <input
+                          type="checkbox"
+                          disabled={!eficaciaAtiva}
+                          checked={eficaciaForm.nota_minima === '' || eficaciaForm.nota_minima === null}
+                          onChange={(event) =>
+                            setEficaciaForm({
+                              ...eficaciaForm,
+                              nota_minima: event.target.checked ? '' : 70,
+                            })
+                          }
+                        />
+                        <span>Sem nota minima</span>
+                      </label>
                     </div>
+                    {eficaciaErro && (
+                      <div style={{ color: '#b91c1c', fontWeight: 600 }}>{eficaciaErro}</div>
+                    )}
+                    {eficaciaCarregando && <div>Carregando formulario...</div>}
+                    {!eficaciaCarregando && eficaciaQuestionario && (
+                      <>
+                        <div className="eficacia-perguntas-header">
+                          <div className="eficacia-perguntas-count">
+                            {(eficaciaQuestionario.perguntas || []).length} pergunta(s)
+                          </div>
+                          <button
+                            type="button"
+                            className="action-button action-button--primary"
+                            onClick={abrirNovaPergunta}
+                            disabled={!eficaciaAtiva || eficaciaTemTentativas}
+                            title="Nova pergunta"
+                            aria-label="Nova pergunta"
+                          >
+                            <Plus size={16} />
+                            Nova pergunta
+                          </button>
+                        </div>
+                        <div className="eficacia-perguntas-list">
+                          {(eficaciaQuestionario.perguntas || []).map((pergunta) => (
+                            <div key={pergunta.id} className="eficacia-pergunta-card">
+                              <div>
+                                <strong>{pergunta.enunciado}</strong>
+                                <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>
+                                  {tipoPerguntaLabel(pergunta.tipo)} •{' '}
+                                  {pergunta.obrigatoria ? 'Obrigatoria' : 'Opcional'}
+                                </div>
+                                {isMultiplaEscolha(pergunta.tipo) && (
+                                  <ul style={{ margin: '8px 0 0 16px', color: 'var(--text-muted)' }}>
+                                    {(pergunta.alternativas || []).map((alt) => (
+                                      <li key={alt.id}>
+                                        {alt.texto} {alt.correta ? '(correta)' : ''}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                              <div style={{ display: 'flex', gap: 10 }}>
+                                <button
+                                  type="button"
+                                  className="icon-button icon-button--ghost"
+                                  onClick={() => abrirEditarPergunta(pergunta)}
+                                  disabled={!eficaciaAtiva || eficaciaTemTentativas}
+                                  title="Editar"
+                                  aria-label="Editar"
+                                >
+                                  <Pencil size={18} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="icon-button icon-button--danger"
+                                  onClick={() => excluirPergunta(pergunta.id)}
+                                  disabled={!eficaciaAtiva || eficaciaTemTentativas}
+                                  title="Excluir"
+                                  aria-label="Excluir"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                          {(eficaciaQuestionario.perguntas || []).length === 0 && (
+                            <div style={{ color: 'var(--text-muted)' }}>Nenhuma pergunta cadastrada.</div>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
               </div>

@@ -39,11 +39,15 @@ class TreinamentoSerializer(serializers.ModelSerializer):
             "responsavel",
             "ultima_atualizacao",
             "departamentos",
+            "formulario_tipo",
+            "formulario_link",
             "modulos",
             "eficacia_ativa",
         ]
         extra_kwargs = {
             "codigo": {"required": False, "allow_blank": True},
+            "formulario_link": {"required": False, "allow_blank": True},
+            "formulario_tipo": {"required": False},
         }
 
     def validate(self, attrs):
@@ -56,10 +60,22 @@ class TreinamentoSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {"departamentos": "Quando o departamento Geral esta selecionado, nenhum outro pode ser escolhido."}
                 )
+        formulario_tipo = attrs.get(
+            "formulario_tipo",
+            getattr(self.instance, "formulario_tipo", "integrado") if self.instance else "integrado",
+        )
+        formulario_link = attrs.get(
+            "formulario_link",
+            getattr(self.instance, "formulario_link", "") if self.instance else "",
+        )
+        if formulario_tipo == "microsoft_form" and not (formulario_link or "").strip():
+            raise serializers.ValidationError({"formulario_link": "Informe o link do Microsoft Form."})
         return attrs
 
     def get_eficacia_ativa(self, obj):
         if not getattr(obj, "pk", None):
+            return False
+        if getattr(obj, "formulario_tipo", "integrado") == "microsoft_form":
             return False
         return obj.questionarios_eficacia.filter(ativo=True).exists()
 
@@ -308,3 +324,4 @@ class UsuarioTreinamentoSerializer(serializers.Serializer):
     iniciado_em = serializers.DateTimeField(allow_null=True)
     concluido_em = serializers.DateTimeField(allow_null=True)
     status = serializers.CharField()
+    obrigatorio = serializers.BooleanField()
